@@ -22,7 +22,7 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate }) 
   };
 
   return (
-    <div className="bg-[#faf8ff] text-[#131b2e] w-full min-h-[calc(100vh-65px)] flex flex-col font-sans overflow-hidden">
+    <div className="bg-[#faf8ff] text-[#131b2e] w-full flex-1 flex flex-col font-sans">
       {/* Top Header / Progress */}
       <header className="w-full h-16 flex justify-between items-center px-4 md:px-6 shrink-0 border-b border-[#c7c4d7]/60 z-10 bg-white/90 backdrop-blur-md shadow-xs">
         <div className="flex items-center gap-3">
@@ -69,7 +69,7 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate }) 
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 flex flex-col md:flex-row w-full p-3 md:p-4 gap-4 overflow-hidden h-[calc(100vh-130px)]">
+      <main className="flex-1 flex flex-col md:flex-row w-full p-3 md:p-4 gap-4 pb-20 md:pb-6">
         {/* Left Panel: AI Teacher */}
         <section className="w-full md:w-80 shrink-0 flex flex-col gap-3">
           {/* Nova Video / Avatar Card */}

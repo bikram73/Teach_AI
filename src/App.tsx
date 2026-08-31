@@ -26,9 +26,7 @@ export default function App() {
   return (
     <div className="min-h-screen w-full flex flex-col font-sans transition-colors duration-200 bg-[#faf8ff] text-[#131b2e]">
       {/* Universal Top Nav Header */}
-      {!['classroom'].includes(currentScreen) && (
-        <TopNav currentScreen={currentScreen} onNavigate={setCurrentScreen} />
-      )}
+      <TopNav currentScreen={currentScreen} onNavigate={setCurrentScreen} />
 
       {/* Screen Quick Switcher Ribbon */}
       <div className="w-full py-1.5 px-4 text-xs flex items-center justify-between overflow-x-auto border-b z-30 transition-colors bg-[#eaedff]/80 text-[#131b2e]/80 border-[#c7c4d7]/60">
