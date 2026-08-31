@@ -44,6 +44,7 @@ export interface QuizQuestion {
   id?: string;
   subject: string;
   topic: string;
+  concept?: string;
   question: string;
   options: {
     key: 'A' | 'B' | 'C' | 'D';
@@ -51,6 +52,48 @@ export interface QuizQuestion {
   }[];
   correctAnswer: 'A' | 'B' | 'C' | 'D';
   explanation: string;
+}
+
+export interface AssessmentItem {
+  id: string;
+  concept: string;
+  question: string;
+  options: {
+    key: 'A' | 'B' | 'C' | 'D';
+    text: string;
+  }[];
+  correctAnswer: 'A' | 'B' | 'C' | 'D';
+  explanation: string;
+  selectedOption?: 'A' | 'B' | 'C' | 'D';
+  isCorrect?: boolean;
+}
+
+export interface UserAssessmentSummary {
+  totalQuestions: number;
+  correctCount: number;
+  scorePercent: number;
+  strongAreas: { name: string; score: number }[];
+  weakAreas: { name: string; score: number }[];
+  recommendedRevision: string;
+  recommendedNextTopic: string;
+  topicTitle: string;
+}
+
+export interface RagChunk {
+  id: string;
+  text: string;
+  section: string;
+  page?: number;
+  source: string;
+  relevanceScore?: number;
+}
+
+export interface RagQueryResult {
+  answer: string;
+  isGrounded: boolean;
+  retrievedChunks: RagChunk[];
+  sourceDocument?: string;
+  unsupportedNotice?: string;
 }
 
 export interface EvaluationResult {

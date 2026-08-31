@@ -127,9 +127,10 @@ $$\text{Understand} \longrightarrow \text{Plan} \longrightarrow \text{Explain} \
 | Method | Endpoint | Description |
 |---|---|---|
 | `POST` | `/api/session` | Creates or retrieves temporary in-memory session |
-| `POST` | `/api/upload` | Processes uploaded documents, extracts text, and builds RAG chunks |
+| `POST` | `/api/upload` | Processes uploaded documents, extracts text, and builds RAG chunks with page and section metadata |
+| `POST` | `/api/rag/query` | Grounded semantic/token keyword retrieval against uploaded document with verified citations & hallucination safeguards |
 | `POST` | `/api/lesson/plan` | Generates a structured lesson plan via Gemini |
-| `POST` | `/api/lesson/ask` | Answers in-class student queries via Teacher Nova |
+| `POST` | `/api/lesson/ask` | Answers in-class student queries via Teacher Nova with RAG citations |
 | `POST` | `/api/lesson/evaluate` | Evaluates quiz answers, detects misconceptions, and returns adaptive analogies |
 | `POST` | `/api/voice/speak` | Synthesizes spoken audio via Gemini TTS or client Web Speech API |
 

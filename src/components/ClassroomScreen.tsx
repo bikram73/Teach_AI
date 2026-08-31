@@ -182,6 +182,7 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
           currentConcept: currentScene.concept,
           language: formState?.language || 'English',
           level: formState?.currentLevel || 'Intermediate',
+          documentText: formState?.uploadedFileContent,
         }),
       });
       const data = await res.json();
@@ -193,6 +194,7 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
             sender: 'nova',
             text: data.response.answer,
             analogy: data.response.analogy,
+            citations: data.response.citations || (data.grounding?.citations?.length > 0 ? data.grounding.citations : undefined),
           },
         ]);
 
@@ -726,6 +728,16 @@ print(f"Power Dissipation: {p:.2f} W")`}
                     {msg.analogy && (
                       <div className="mt-2 pt-2 border-t border-[#4648d4]/20 text-[11px] text-[#4648d4] italic">
                         💡 Analogy: {msg.analogy}
+                      </div>
+                    )}
+                    {msg.citations && msg.citations.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-[#c7c4d7]/40 flex flex-wrap gap-1">
+                        {msg.citations.map((c: string, ci: number) => (
+                          <span key={ci} className="text-[10px] bg-white text-[#4648d4] px-2 py-0.5 rounded-md border border-[#c7c4d7]/60 font-semibold flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[12px]">description</span>
+                            {c}
+                          </span>
+                        ))}
                       </div>
                     )}
                   </div>

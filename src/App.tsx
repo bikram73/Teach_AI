@@ -9,7 +9,7 @@ import { ResultsScreen } from './components/ResultsScreen';
 import { LearningPathScreen } from './components/LearningPathScreen';
 import { TopNav } from './components/TopNav';
 import { MobileBottomNav } from './components/MobileBottomNav';
-import { LessonPlan, PersonalizeFormState, ScreenType } from './types';
+import { LessonPlan, PersonalizeFormState, ScreenType, UserAssessmentSummary } from './types';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('home');
@@ -25,10 +25,15 @@ export default function App() {
     teachingStyle: 'conceptual',
   });
   const [lessonPlan, setLessonPlan] = useState<LessonPlan | undefined>(undefined);
+  const [assessmentSummary, setAssessmentSummary] = useState<UserAssessmentSummary | undefined>(undefined);
 
   const handleSetFormState = (form: PersonalizeFormState, plan?: LessonPlan) => {
     setFormState(form);
     if (plan) setLessonPlan(plan);
+  };
+
+  const handleCompleteAssessment = (summary: UserAssessmentSummary) => {
+    setAssessmentSummary(summary);
   };
 
   const screenLabels: { id: ScreenType; label: string; icon: string }[] = [
@@ -93,10 +98,28 @@ export default function App() {
             formState={formState}
           />
         )}
-        {currentScreen === 'question' && <QuestionScreen onNavigate={setCurrentScreen} />}
+        {currentScreen === 'question' && (
+          <QuestionScreen
+            onNavigate={setCurrentScreen}
+            onCompleteAssessment={handleCompleteAssessment}
+            topicTitle={formState.topicText || "Basic Circuits & Ohm's Law"}
+          />
+        )}
         {currentScreen === 'adaptive' && <AdaptiveScreen onNavigate={setCurrentScreen} />}
-        {currentScreen === 'results' && <ResultsScreen onNavigate={setCurrentScreen} />}
-        {currentScreen === 'path' && <LearningPathScreen onNavigate={setCurrentScreen} />}
+        {currentScreen === 'results' && (
+          <ResultsScreen
+            onNavigate={setCurrentScreen}
+            assessmentSummary={assessmentSummary}
+            topicTitle={formState.topicText || "Basic Circuits & Ohm's Law"}
+          />
+        )}
+        {currentScreen === 'path' && (
+          <LearningPathScreen
+            onNavigate={setCurrentScreen}
+            assessmentSummary={assessmentSummary}
+            topicTitle={formState.topicText || "Basic Circuits & Ohm's Law"}
+          />
+        )}
       </main>
 
       {/* Mobile Bottom Navigation Bar */}

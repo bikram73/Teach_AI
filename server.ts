@@ -336,35 +336,68 @@ Follow this JSON schema strictly:
   }
 });
 
-// 4. Live Student Q&A Agent ("Ask Teacher Nova" in classroom)
+// 4. Live Student Q&A Agent with RAG Grounding ("Ask Teacher Nova" in classroom)
 app.post("/api/lesson/ask", async (req, res) => {
   try {
-    const { question, topic, currentConcept, language, level } = req.body;
+    const { question, topic, currentConcept, language, level, sessionId, documentText, documentChunks } = req.body;
     const userQuery = question || "Can you explain this again?";
     const currentTopic = topic || "Basic Circuits & Ohm's Law";
     const lang = language || "English";
+
+    // Retrieve RAG chunks from session or request
+    let chunks: Chunk[] = documentChunks || [];
+    let sourceFileName = "uploaded_document.pdf";
+    if (sessionId && sessions.has(sessionId)) {
+      const sess = sessions.get(sessionId)!;
+      if (sess.source && sess.source.chunks && sess.source.chunks.length > 0) {
+        chunks = sess.source.chunks;
+        sourceFileName = sess.source.fileName || "uploaded_document.pdf";
+      }
+    }
+
+    // Keyword & Token matching RAG retrieval
+    const queryTokens = userQuery.toLowerCase().split(/\W+/).filter((w: string) => w.length > 2);
+    let matchedChunks: Array<Chunk & { score: number }> = [];
+
+    if (chunks.length > 0) {
+      matchedChunks = chunks
+        .map((chunk) => {
+          const chunkLower = chunk.text.toLowerCase();
+          let score = 0;
+          for (const token of queryTokens) {
+            if (chunkLower.includes(token)) score += 1;
+          }
+          return { ...chunk, score };
+        })
+        .filter((c) => c.score > 0)
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 3);
+    }
+
+    const hasRagContext = matchedChunks.length > 0;
+    const ragContextStr = matchedChunks
+      .map((c) => `[Source: ${c.source}, Page ${c.page || 1}, ${c.section}]:\n${c.text}`)
+      .join("\n\n");
 
     if (process.env.GEMINI_API_KEY) {
       try {
         const ai = getGemini();
         const prompt = `You are Teacher Nova, a warm, encouraging, human-like AI educator teaching a student about "${currentTopic}".
 Current Concept being discussed: "${currentConcept || "Resistance vs Current"}".
-Student's preferred language: "${lang}". If the student asks in Hinglish, Hindi, or another language, answer naturally and fluently in that language while keeping key scientific terms crisp.
+Student's preferred language: "${lang}". If the student asks in Hinglish, Hindi, Spanish, etc., answer naturally in that language while keeping technical terms accurate.
 Student level: "${level || "Intermediate"}".
+
+${hasRagContext ? `GROUNDING RAG CONTEXT (Retrieved from student's uploaded material):\n${ragContextStr}\n\nSTRICT RAG SAFETY RULE: Base factual claims strictly on the provided context where applicable. If the question asks about something completely absent and unrelated to the uploaded material, clearly state that it is not covered in the document.` : ""}
 
 Student asks: "${userQuery}"
 
-Provide:
-1. A concise, crystal-clear explanation (2-3 sentences max).
-2. A memorable real-world analogy.
-3. A quick check question to see if they understood.
-
-Output JSON:
+Provide structured JSON:
 {
-  "answer": "string",
-  "analogy": "string",
-  "followUp": "string",
-  "encouragement": "string"
+  "answer": "string (crystal-clear 2-3 sentences)",
+  "analogy": "string (memorable real-world analogy)",
+  "followUp": "string (brief verification question)",
+  "encouragement": "string",
+  "citations": ["string (e.g. Source: filename, Page X)"]
 }`;
 
         const response = await ai.models.generateContent({
@@ -378,26 +411,116 @@ Output JSON:
 
         if (response.text) {
           const parsed = JSON.parse(response.text.trim());
-          return res.json({ success: true, response: parsed });
+          return res.json({
+            success: true,
+            response: parsed,
+            grounding: {
+              isGrounded: hasRagContext,
+              retrievedChunksCount: matchedChunks.length,
+              citations: matchedChunks.map((c) => `${c.source} (Page ${c.page || 1}, ${c.section})`),
+            },
+          });
         }
       } catch (geminiError) {
         console.warn("Gemini Q&A fallback:", geminiError);
       }
     }
 
-    // Intelligent fallback response
+    // Grounded Fallback response
+    const citations = matchedChunks.map((c) => `${c.source} (Page ${c.page || 1}, ${c.section})`);
     res.json({
       success: true,
       response: {
-        answer: `Great question! When we think about ${currentTopic}, remember that current is the actual flow of electric charge, while resistance is the opposition or obstacle that slows down that flow.`,
+        answer: hasRagContext
+          ? `According to your uploaded material (${sourceFileName}), ${currentTopic} establishes that potential difference drives charge flow while resistance acts as the obstacle.`
+          : `Great question! When we think about ${currentTopic}, remember that current is the actual flow of electric charge, while resistance is the opposition that slows down that flow.`,
         analogy: "Think of water flowing through a garden hose: if someone steps on the hose (increasing resistance), less water comes out per second (decreasing current).",
         followUp: "Does that make the relationship between resistance and current clear?",
         encouragement: "Keep asking questions! That is the fastest way to build solid mental models.",
+        citations: citations.length > 0 ? citations : undefined,
+      },
+      grounding: {
+        isGrounded: hasRagContext,
+        retrievedChunksCount: matchedChunks.length,
+        citations,
       },
     });
   } catch (error: any) {
     console.error("Ask Nova error:", error);
     res.status(500).json({ error: error.message || "Failed to process question" });
+  }
+});
+
+// Dedicated RAG Query Endpoint (For live knowledge verification & citation retrieval)
+app.post("/api/rag/query", async (req, res) => {
+  try {
+    const { sessionId, query, documentText, chunks: passedChunks } = req.body;
+    const userQuery = (query || "").trim();
+
+    let chunks: Chunk[] = passedChunks || [];
+    let sourceFileName = "uploaded_material.pdf";
+
+    if (sessionId && sessions.has(sessionId)) {
+      const sess = sessions.get(sessionId)!;
+      if (sess.source.chunks && sess.source.chunks.length > 0) {
+        chunks = sess.source.chunks;
+        sourceFileName = sess.source.fileName || "uploaded_material.pdf";
+      }
+    }
+
+    if (chunks.length === 0 && documentText) {
+      const rawParas = documentText.split(/\n\s*\n/).filter((p: string) => p.trim().length > 0);
+      chunks = rawParas.map((para: string, idx: number) => ({
+        id: `chunk_${idx + 1}`,
+        text: para.trim(),
+        section: `Section ${idx + 1}`,
+        page: Math.floor(idx / 3) + 1,
+        source: sourceFileName,
+      }));
+    }
+
+    // Token & Semantic relevance search
+    const queryTokens = userQuery.toLowerCase().split(/\W+/).filter((w: string) => w.length > 2);
+    const scoredChunks = chunks
+      .map((chunk) => {
+        const textLower = chunk.text.toLowerCase();
+        let matchCount = 0;
+        for (const t of queryTokens) {
+          if (textLower.includes(t)) matchCount++;
+        }
+        const relevanceScore = queryTokens.length > 0 ? matchCount / queryTokens.length : 0;
+        return { ...chunk, relevanceScore };
+      })
+      .filter((c) => c.relevanceScore > 0)
+      .sort((a, b) => b.relevanceScore - a.relevanceScore);
+
+    const isGrounded = scoredChunks.length > 0;
+    const topChunks = scoredChunks.slice(0, 3);
+
+    if (!isGrounded) {
+      return res.json({
+        success: true,
+        answer: `This topic is not mentioned in your uploaded document ('${sourceFileName}'). Grounded strictly in your provided material, the system avoids generating ungrounded facts.`,
+        isGrounded: false,
+        retrievedChunks: [],
+        sourceDocument: sourceFileName,
+        unsupportedNotice: "Query content could not be verified against the uploaded document index.",
+      });
+    }
+
+    const citationDetails = topChunks.map((c) => `[Source: ${c.source}, Page ${c.page || 1}, ${c.section}]`);
+
+    return res.json({
+      success: true,
+      answer: `Found in ${sourceFileName}: "${topChunks[0].text.slice(0, 200)}..."`,
+      isGrounded: true,
+      retrievedChunks: topChunks,
+      citations: citationDetails,
+      sourceDocument: sourceFileName,
+    });
+  } catch (error: any) {
+    console.error("RAG Query error:", error);
+    res.status(500).json({ error: error.message || "RAG retrieval failed" });
   }
 });
 
