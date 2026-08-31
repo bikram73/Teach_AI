@@ -1,13 +1,17 @@
-import React, { useState } from 'react';
-import { PersonalizeFormState, ScreenType } from '../types';
+import React, { useState, useRef } from 'react';
+import { LessonPlan, PersonalizeFormState, ScreenType } from '../types';
 
 interface PersonalizeScreenProps {
   onNavigate: (screen: ScreenType) => void;
+  onSetFormState?: (form: PersonalizeFormState, plan?: LessonPlan) => void;
 }
 
-export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate }) => {
+export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate, onSetFormState }) => {
   const [formData, setFormData] = useState<PersonalizeFormState>({
     sourceMaterial: 'upload',
+    topicText: "Basic Circuits & Ohm's Law",
+    uploadedFileName: 'Physics_Circuits_Lecture_Notes.pdf',
+    uploadedFileContent: "An electric circuit consists of a source of electromotive force, conductive pathways, and electrical loads. Ohm's law defines the relationship between potential difference V, current I, and resistance R: V = I * R.",
     currentLevel: 'Intermediate',
     primaryGoal: 'Fundamentals',
     timeAvailable: '20m',
@@ -15,13 +19,115 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
     teachingStyle: 'conceptual',
   });
 
-  const [topicInput, setTopicInput] = useState('Newtonian Mechanics & Dynamics');
+  const [topicInput, setTopicInput] = useState("Basic Circuits & Ohm's Law");
   const [isLangOpen, setIsLangOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [loadingPlan, setLoadingPlan] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const languages = ['English', 'Spanish', 'French', 'German', 'Japanese', 'Mandarin', 'Hindi'];
+  // Supported languages according to PRD section 9 (Indian & International languages)
+  const languages = [
+    'English',
+    'Hinglish (Hindi + English)',
+    'Hindi (हिंदी)',
+    'Kannada (ಕನ್ನಡ)',
+    'Tamil (தமிழ்)',
+    'Telugu (తెలుగు)',
+    'Bengali (বাংলা)',
+    'Spanish (Español)',
+    'French (Français)',
+    'German (Deutsch)',
+    'Japanese (日本語)',
+    'Mandarin (中文)',
+  ];
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const processFile = (file: File) => {
+    setIsUploading(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const text = event.target?.result as string || '';
+      setFormData((prev) => ({
+        ...prev,
+        sourceMaterial: 'upload',
+        uploadedFileName: file.name,
+        uploadedFileContent: text || `Content extracted from ${file.name}: Comprehensive lecture notes and practice problems.`,
+      }));
+      setIsUploading(false);
+    };
+    reader.onerror = () => {
+      setIsUploading(false);
+    };
+    if (file.type.includes('text') || file.name.endsWith('.txt')) {
+      reader.readAsText(file);
+    } else {
+      // Simulate rich document extraction for PDF/DOC/PPT
+      setTimeout(() => {
+        setFormData((prev) => ({
+          ...prev,
+          sourceMaterial: 'upload',
+          uploadedFileName: file.name,
+          uploadedFileContent: `Extracted concepts and formulas from ${file.name}: Physics Section 3.2 - Electrodynamics and resistance principles.`,
+        }));
+        setIsUploading(false);
+      }, 500);
+    }
+  };
+
+  const handleSubmit = async () => {
+    setLoadingPlan(true);
+    const finalForm: PersonalizeFormState = {
+      ...formData,
+      topicText: formData.sourceMaterial === 'topic' ? topicInput : (formData.uploadedFileName || 'Uploaded Document'),
+    };
+
+    try {
+      // Call backend Lesson Planner API
+      const res = await fetch('/api/lesson/plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: finalForm.topicText,
+          level: finalForm.currentLevel,
+          language: finalForm.language,
+          timeAvailable: finalForm.timeAvailable,
+          teachingStyle: finalForm.teachingStyle,
+          documentText: finalForm.uploadedFileContent,
+        }),
+      });
+      const data = await res.json();
+      if (onSetFormState) {
+        onSetFormState(finalForm, data.lessonPlan);
+      }
+    } catch (e) {
+      console.warn('Fallback plan creation:', e);
+      if (onSetFormState) {
+        onSetFormState(finalForm);
+      }
+    } finally {
+      setLoadingPlan(false);
+      onNavigate('planning');
+    }
+  };
 
   return (
-    <div className="w-full min-h-[calc(100vh-65px)] bg-white text-[#131b2e] flex flex-col items-center py-10 md:py-16 px-4 sm:px-8 pb-24 md:pb-16">
+    <div className="w-full min-h-[calc(100vh-65px)] bg-white text-[#131b2e] flex flex-col items-center py-10 md:py-16 px-4 sm:px-8 pb-24 md:pb-16 font-sans">
       <main className="w-full max-w-[800px] flex flex-col gap-10 md:gap-12 relative">
         {/* Header */}
         <header className="text-center mb-2">
@@ -29,12 +135,21 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
             <span className="material-symbols-outlined text-[#4648d4] text-[24px]">auto_awesome</span>
           </div>
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#4648d4] tracking-tight">
-            Let's personalize your lesson.
+            Personalize Your AI Teacher
           </h1>
           <p className="text-sm sm:text-base text-[#464554] mt-2">
-            Configure your AI tutor for the perfect learning experience.
+            Configure Nova to tailor explanations, speed, language, and difficulty to your exact goals.
           </p>
         </header>
+
+        {/* Hidden File Input */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          onChange={handleFileUpload}
+          accept=".pdf,.doc,.docx,.ppt,.pptx,.txt"
+          className="hidden"
+        />
 
         {/* Form Sections */}
         <div className="flex flex-col gap-8 md:gap-10">
@@ -44,29 +159,48 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
               <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#e2e7ff] text-[#131b2e] text-xs font-bold">
                 1
               </span>
-              <h2 className="text-lg md:text-xl font-bold text-[#131b2e]">Source Material</h2>
+              <h2 className="text-lg md:text-xl font-bold text-[#131b2e]">Learning Source</h2>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Option: Upload */}
               <div
-                onClick={() => setFormData({ ...formData, sourceMaterial: 'upload' })}
-                className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all cursor-pointer group ${
+                onClick={() => {
+                  setFormData({ ...formData, sourceMaterial: 'upload' });
+                  fileInputRef.current?.click();
+                }}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={handleDrop}
+                className={`flex flex-col items-center justify-center p-6 rounded-2xl border transition-all cursor-pointer group relative ${
                   formData.sourceMaterial === 'upload'
                     ? 'border-[#4648d4] bg-[#f2f3ff] shadow-[0_0_0_1px_#4648d4]'
                     : 'border-[#c7c4d7]/70 bg-white hover:border-[#4648d4] hover:bg-[#faf8ff]'
-                }`}
+                } ${isDragging ? 'ring-2 ring-[#4648d4] bg-[#e1e0ff]/30' : ''}`}
               >
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 transition-colors ${
-                  formData.sourceMaterial === 'upload' ? 'bg-[#e1e0ff]' : 'bg-[#f2f3ff] group-hover:bg-[#e1e0ff]'
-                }`}>
-                  <span className="material-symbols-outlined text-[#4648d4] text-[32px]">upload_file</span>
+                <div
+                  className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 transition-colors ${
+                    formData.sourceMaterial === 'upload' ? 'bg-[#e1e0ff]' : 'bg-[#f2f3ff] group-hover:bg-[#e1e0ff]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[#4648d4] text-[32px]">
+                    {isUploading ? 'hourglass_top' : 'upload_file'}
+                  </span>
                 </div>
-                <h3 className="text-base font-bold text-[#131b2e] mb-1">Upload Material</h3>
-                <p className="text-xs text-[#464554] text-center">PDFs, Docs, or Slides</p>
-                {formData.sourceMaterial === 'upload' && (
-                  <div className="mt-3 text-[11px] text-[#4648d4] font-medium bg-white/80 px-2.5 py-1 rounded-full border border-[#4648d4]/20 flex items-center gap-1">
-                    <span className="material-symbols-outlined text-[14px]">check</span> Physics_Notes_Ch3.pdf
+                <h3 className="text-base font-bold text-[#131b2e] mb-1">
+                  {isUploading ? 'Processing File...' : 'Upload Learning Material'}
+                </h3>
+                <p className="text-xs text-[#464554] text-center">
+                  Drag & Drop PDF, DOCX, PPTX, or Notes
+                </p>
+
+                {formData.sourceMaterial === 'upload' && formData.uploadedFileName && (
+                  <div className="mt-3 text-[11px] text-[#4648d4] font-medium bg-white/90 px-3 py-1.5 rounded-full border border-[#4648d4]/30 flex items-center gap-1.5 shadow-xs">
+                    <span className="material-symbols-outlined text-[15px] text-emerald-600">verified</span>
+                    <span className="truncate max-w-[200px]">{formData.uploadedFileName}</span>
                   </div>
                 )}
               </div>
@@ -80,21 +214,23 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
                     : 'border-[#c7c4d7]/70 bg-white hover:border-[#4648d4] hover:bg-[#faf8ff]'
                 }`}
               >
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 transition-colors ${
-                  formData.sourceMaterial === 'topic' ? 'bg-[#e1e0ff]' : 'bg-[#f2f3ff] group-hover:bg-[#e1e0ff]'
-                }`}>
+                <div
+                  className={`w-16 h-16 rounded-full flex items-center justify-center mb-3 transition-colors ${
+                    formData.sourceMaterial === 'topic' ? 'bg-[#e1e0ff]' : 'bg-[#f2f3ff] group-hover:bg-[#e1e0ff]'
+                  }`}
+                >
                   <span className="material-symbols-outlined text-[#4648d4] text-[32px]">edit_note</span>
                 </div>
-                <h3 className="text-base font-bold text-[#131b2e] mb-1">Enter a Topic</h3>
-                <p className="text-xs text-[#464554] text-center">Type any subject to learn</p>
+                <h3 className="text-base font-bold text-[#131b2e] mb-1">Teach Any Topic</h3>
+                <p className="text-xs text-[#464554] text-center">Type any subject to learn from scratch</p>
                 {formData.sourceMaterial === 'topic' && (
                   <div className="mt-3 w-full px-2" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="text"
                       value={topicInput}
                       onChange={(e) => setTopicInput(e.target.value)}
-                      placeholder="e.g. Quantum Computing, Calculus..."
-                      className="w-full text-xs px-3 py-1.5 rounded-lg border border-[#4648d4] bg-white focus:outline-none focus:ring-1 focus:ring-[#4648d4]"
+                      placeholder="e.g. Machine Learning, Calculus, Newton's Laws..."
+                      className="w-full text-xs px-3.5 py-2 rounded-lg border border-[#4648d4] bg-white focus:outline-none focus:ring-2 focus:ring-[#4648d4]/30"
                     />
                   </div>
                 )}
@@ -110,7 +246,7 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#e2e7ff] text-[#131b2e] text-xs font-bold">
                   2
                 </span>
-                <h2 className="text-lg font-bold text-[#131b2e]">Current Level</h2>
+                <h2 className="text-lg font-bold text-[#131b2e]">Education Level</h2>
               </div>
               <div className="flex flex-wrap gap-2.5">
                 {(['Beginner', 'Intermediate', 'Advanced'] as const).map((lvl) => (
@@ -159,21 +295,21 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
 
           {/* Grid for Steps 4 & 5 */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
-            {/* Step 4: Time */}
+            {/* Step 4: Time Available */}
             <section className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#e2e7ff] text-[#131b2e] text-xs font-bold">
                   4
                 </span>
-                <h2 className="text-lg font-bold text-[#131b2e]">Time Available</h2>
+                <h2 className="text-lg font-bold text-[#131b2e]">Available Time</h2>
               </div>
-              <div className="flex flex-wrap gap-2.5">
-                {(['5m', '10m', '20m', '30m', '60m'] as const).map((time) => (
+              <div className="flex flex-wrap gap-2">
+                {(['5m', '10m', '20m', '30m', '60m', '7 days'] as const).map((time) => (
                   <button
                     key={time}
                     type="button"
                     onClick={() => setFormData({ ...formData, timeAvailable: time })}
-                    className={`px-4 py-2 rounded-full border text-sm font-medium transition-all ${
+                    className={`px-3.5 py-1.5 rounded-full border text-xs sm:text-sm font-medium transition-all ${
                       formData.timeAvailable === time
                         ? 'bg-[#6063ee] text-white border-[#6063ee] shadow-sm'
                         : 'border-[#c7c4d7]/70 text-[#464554] bg-white hover:bg-[#f2f3ff]'
@@ -191,7 +327,7 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#e2e7ff] text-[#131b2e] text-xs font-bold">
                   5
                 </span>
-                <h2 className="text-lg font-bold text-[#131b2e]">Language</h2>
+                <h2 className="text-lg font-bold text-[#131b2e]">Teaching Language</h2>
               </div>
               <div className="relative">
                 <div
@@ -208,7 +344,7 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
                 </div>
 
                 {isLangOpen && (
-                  <div className="absolute top-full left-0 w-full mt-1 bg-white border border-[#c7c4d7] rounded-xl shadow-lg z-20 py-1 max-h-48 overflow-y-auto">
+                  <div className="absolute top-full left-0 w-full mt-1 bg-white border border-[#c7c4d7] rounded-xl shadow-lg z-30 py-1 max-h-56 overflow-y-auto">
                     {languages.map((lang) => (
                       <div
                         key={lang}
@@ -216,7 +352,7 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
                           setFormData({ ...formData, language: lang });
                           setIsLangOpen(false);
                         }}
-                        className={`px-4 py-2 text-sm cursor-pointer hover:bg-[#f2f3ff] transition-colors flex items-center justify-between ${
+                        className={`px-4 py-2.5 text-sm cursor-pointer hover:bg-[#f2f3ff] transition-colors flex items-center justify-between ${
                           formData.language === lang ? 'font-bold text-[#4648d4] bg-[#f2f3ff]' : 'text-[#131b2e]'
                         }`}
                       >
@@ -252,10 +388,10 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
               >
                 <span className="material-symbols-outlined text-[#4648d4] mb-2 text-[22px]">palette</span>
                 <h3 className="font-bold text-sm text-[#131b2e] mb-1">Simple & Visual</h3>
-                <p className="text-xs text-[#464554]">Analogies, diagrams, and easy concepts.</p>
+                <p className="text-xs text-[#464554]">Visual analogies, diagrams, and step-by-step illustrations.</p>
               </div>
 
-              {/* Conceptual (Default Selected in Mock) */}
+              {/* Conceptual */}
               <div
                 onClick={() => setFormData({ ...formData, teachingStyle: 'conceptual' })}
                 className={`flex flex-col p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${
@@ -267,7 +403,7 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
                 <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#4648d4] to-[#6b38d4]" />
                 <span className="material-symbols-outlined text-[#4648d4] mb-2 text-[22px]">psychology</span>
                 <h3 className="font-bold text-sm text-[#131b2e] mb-1">Conceptual</h3>
-                <p className="text-xs text-[#464554]">Focus on 'why' and core principles.</p>
+                <p className="text-xs text-[#464554]">Focus on physical 'why' and governing principles.</p>
               </div>
 
               {/* Socratic */}
@@ -281,7 +417,7 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
               >
                 <span className="material-symbols-outlined text-[#4648d4] mb-2 text-[22px]">question_answer</span>
                 <h3 className="font-bold text-sm text-[#131b2e] mb-1">Socratic</h3>
-                <p className="text-xs text-[#464554]">Guided through questioning.</p>
+                <p className="text-xs text-[#464554]">Guided discovery through targeted questions.</p>
               </div>
             </div>
           </section>
@@ -296,11 +432,14 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
             Cancel
           </button>
           <button
-            onClick={() => onNavigate('classroom')}
-            className="w-full sm:w-auto bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] text-white font-semibold text-sm px-8 py-3.5 rounded-xl hover:scale-[0.98] transition-transform shadow-md ai-glow flex items-center justify-center gap-2"
+            onClick={handleSubmit}
+            disabled={loadingPlan}
+            className="w-full sm:w-auto bg-gradient-to-r from-[#4648d4] to-[#6063ee] text-white font-semibold text-sm px-8 py-3.5 rounded-xl hover:scale-[0.98] transition-transform shadow-md ai-glow flex items-center justify-center gap-2 cursor-pointer"
           >
-            <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
-            Create My Lesson
+            <span className="material-symbols-outlined text-[20px]">
+              {loadingPlan ? 'sync' : 'auto_awesome'}
+            </span>
+            {loadingPlan ? 'Generating Lesson Plan with Gemini...' : 'Generate Personalized Lesson'}
           </button>
         </div>
       </main>

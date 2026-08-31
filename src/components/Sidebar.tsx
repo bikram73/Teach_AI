@@ -9,7 +9,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ currentScreen, onNavigate, dark = false }) => {
-  const isLearnActive = ['classroom', 'personalize', 'question', 'adaptive'].includes(currentScreen);
+  const isLearnActive = ['classroom', 'personalize', 'planning', 'question', 'adaptive'].includes(currentScreen);
 
   return (
     <aside
