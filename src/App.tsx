@@ -13,8 +13,6 @@ import { ScreenType } from './types';
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('home');
 
-  const isDarkModeScreen = ['classroom', 'question', 'adaptive'].includes(currentScreen);
-
   const screenLabels: { id: ScreenType; label: string; icon: string }[] = [
     { id: 'home', label: '1. Home', icon: 'home' },
     { id: 'personalize', label: '2. Setup', icon: 'tune' },
@@ -26,20 +24,14 @@ export default function App() {
   ];
 
   return (
-    <div className={`min-h-screen w-full flex flex-col font-sans transition-colors duration-200 ${
-      isDarkModeScreen ? 'bg-[#0F172A]' : 'bg-[#faf8ff]'
-    }`}>
+    <div className="min-h-screen w-full flex flex-col font-sans transition-colors duration-200 bg-[#faf8ff] text-[#131b2e]">
       {/* Universal Top Nav Header */}
       {!['classroom'].includes(currentScreen) && (
         <TopNav currentScreen={currentScreen} onNavigate={setCurrentScreen} />
       )}
 
       {/* Screen Quick Switcher Ribbon */}
-      <div className={`w-full py-1.5 px-4 text-xs flex items-center justify-between overflow-x-auto border-b z-30 transition-colors ${
-        isDarkModeScreen
-          ? 'bg-[#0b1329]/95 text-white/70 border-white/10'
-          : 'bg-[#eaedff]/80 text-[#131b2e]/80 border-[#c7c4d7]/60'
-      }`}>
+      <div className="w-full py-1.5 px-4 text-xs flex items-center justify-between overflow-x-auto border-b z-30 transition-colors bg-[#eaedff]/80 text-[#131b2e]/80 border-[#c7c4d7]/60">
         <div className="flex items-center gap-1 shrink-0 font-semibold text-[11px] mr-2">
           <span className="material-symbols-outlined text-[15px] text-[#4648d4]">auto_awesome</span>
           <span>Screens:</span>
@@ -51,11 +43,7 @@ export default function App() {
               onClick={() => setCurrentScreen(s.id)}
               className={`px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1 transition-all whitespace-nowrap ${
                 currentScreen === s.id
-                  ? isDarkModeScreen
-                    ? 'bg-[#8B5CF6] text-white shadow-sm'
-                    : 'bg-[#4648d4] text-white shadow-sm'
-                  : isDarkModeScreen
-                  ? 'bg-white/5 hover:bg-white/15 text-white/70'
+                  ? 'bg-[#4648d4] text-white shadow-sm'
                   : 'bg-white hover:bg-[#f2f3ff] text-[#464554] border border-[#c7c4d7]/50'
               }`}
             >
@@ -81,7 +69,7 @@ export default function App() {
       <MobileBottomNav
         currentScreen={currentScreen}
         onNavigate={setCurrentScreen}
-        dark={isDarkModeScreen}
+        dark={false}
       />
     </div>
   );
