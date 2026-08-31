@@ -121,7 +121,7 @@ app.post("/api/session", (req, res) => {
           completedConcepts: [],
           weakConcepts: [],
           strongConcepts: [],
-          score: 82,
+          score: 0,
         },
       };
       sessions.set(sid, session);
