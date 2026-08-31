@@ -164,7 +164,36 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 ---
 
-## 6. Submission Compliance Checklist
+## 6. Netlify Deployment Guide
+
+The project is fully configured for continuous deployment on **Netlify** with both static assets and serverless API functions (`netlify/functions/api.ts`).
+
+### Option A: Deploy via Netlify UI (GitHub / GitLab)
+1. Push your repository to GitHub.
+2. In Netlify Dashboard, click **Add new site** $\to$ **Import an existing project**.
+3. Select your repository. Netlify will auto-detect the configuration from `netlify.toml`:
+   - **Build command**: `npm run build`
+   - **Publish directory**: `dist`
+   - **Functions directory**: `netlify/functions`
+4. Under **Site Configuration** $\to$ **Environment Variables**, add:
+   - `GEMINI_API_KEY`: *(Your Google AI Studio Gemini API Key)*
+5. Click **Deploy Site**.
+
+### Option B: Deploy via Netlify CLI
+```bash
+# 1. Install Netlify CLI
+npm install -g netlify-cli
+
+# 2. Build the production package
+npm run build
+
+# 3. Deploy to production
+netlify deploy --prod
+```
+
+---
+
+## 7. Submission Compliance Checklist
 
 - [x] **No Database Mandate**: Uses purely in-memory session state (`Map<string, LearningSession>`).
 - [x] **No Auth Mandate**: Immediate access without login or registration barriers.

@@ -12,6 +12,14 @@ const PORT = 3000;
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
+// Normalize path for Netlify Functions if invoked directly or via rewrite
+app.use((req, _res, next) => {
+  if (req.url.startsWith("/.netlify/functions/api")) {
+    req.url = req.url.replace("/.netlify/functions/api", "/api");
+  }
+  next();
+});
+
 // In-Memory Temporary Session Store (as mandated by PRD Section 11 & 40)
 interface Chunk {
   id: string;
@@ -684,4 +692,11 @@ async function startServer() {
   });
 }
 
-startServer();
+// Only start the standalone HTTP listener if not running in a serverless function environment
+if (!process.env.NETLIFY && !process.env.AWS_LAMBDA_FUNCTION_NAME) {
+  startServer();
+}
+
+export default app;
+export { app };
+
