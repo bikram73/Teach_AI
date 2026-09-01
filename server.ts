@@ -84,6 +84,96 @@ function getGemini(): GoogleGenAI {
   return genAIClient;
 }
 
+// Resilient Gemini Execution with Multi-Model Cascade & 503 High Demand Exponential Backoff
+async function generateGeminiContent(
+  contents: any,
+  config: any = {},
+  preferredModel = "gemini-3.7-flash"
+): Promise<{ text: string; modelUsed: string } | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+
+  const ai = getGemini();
+  // Valid, active model candidates in fallback order
+  const candidateModels = [
+    preferredModel,
+    "gemini-flash-latest",
+    "gemini-3.1-flash-lite",
+  ].filter((m, i, arr) => arr.indexOf(m) === i);
+
+  for (const model of candidateModels) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const response = await ai.models.generateContent({
+          model,
+          contents,
+          config,
+        });
+
+        if (response && response.text) {
+          return { text: response.text, modelUsed: model };
+        }
+      } catch (err: any) {
+        const isUnavailableOrRateLimit =
+          err?.status === 503 ||
+          err?.code === 503 ||
+          err?.status === 429 ||
+          err?.code === 429 ||
+          err?.message?.includes("503") ||
+          err?.message?.includes("high demand") ||
+          err?.message?.includes("UNAVAILABLE") ||
+          err?.message?.includes("RESOURCE_EXHAUSTED");
+
+        if (isUnavailableOrRateLimit && attempt < 1) {
+          // Short jitter backoff before retrying same model
+          await new Promise((resolve) => setTimeout(resolve, 400 + Math.random() * 300));
+          continue;
+        }
+
+        if (isUnavailableOrRateLimit) {
+          console.warn(`Model ${model} experiencing high demand (503/429). Failing over to next candidate model in cascade...`);
+          break; // Try next model in candidateModels
+        }
+
+        console.warn(`Gemini generation note on ${model}:`, err?.message || err);
+        break; // Non-retryable error, try next candidate
+      }
+    }
+  }
+
+  return null;
+}
+
+// Robust JSON parser with Markdown codeblock stripping
+function parseJSONFromText(text: string): any {
+  if (!text) return null;
+  let clean = text.trim();
+  clean = clean.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+  try {
+    return JSON.parse(clean);
+  } catch {
+    const firstBrace = clean.indexOf("{");
+    const lastBrace = clean.lastIndexOf("}");
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      try {
+        return JSON.parse(clean.slice(firstBrace, lastBrace + 1));
+      } catch {
+        // continue
+      }
+    }
+    const firstBracket = clean.indexOf("[");
+    const lastBracket = clean.lastIndexOf("]");
+    if (firstBracket !== -1 && lastBracket > firstBracket) {
+      try {
+        return JSON.parse(clean.slice(firstBracket, lastBracket + 1));
+      } catch {
+        // continue
+      }
+    }
+    return null;
+  }
+}
+
 // ----------------------------------------------------
 // API ROUTES
 // ----------------------------------------------------
@@ -225,10 +315,7 @@ app.post("/api/lesson/plan", async (req, res) => {
     const userTime = timeAvailable || "20m";
     const style = teachingStyle || "conceptual";
 
-    if (process.env.GEMINI_API_KEY) {
-      try {
-        const ai = getGemini();
-        const prompt = `You are TeachAI's Curriculum & Lesson Planner Agent.
+    const prompt = `You are TeachAI's Curriculum & Lesson Planner Agent.
 Create a structured, highly engaging educational lesson plan for the topic: "${targetTopic}".
 Student details:
 - Education Level: ${userLevel}
@@ -258,86 +345,81 @@ Follow this JSON schema strictly:
   "learningOutcomes": ["string"]
 }`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3.7-flash",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            temperature: 0.2,
-          },
-        });
+    const geminiResult = await generateGeminiContent(prompt, {
+      responseMimeType: "application/json",
+      temperature: 0.2,
+    });
 
-        if (response.text) {
-          const parsed = JSON.parse(response.text.trim());
-          return res.json({ success: true, lessonPlan: parsed });
-        }
-      } catch (geminiError) {
-        console.warn("Gemini API plan generation fallback:", geminiError);
+    if (geminiResult && geminiResult.text) {
+      const parsed = parseJSONFromText(geminiResult.text);
+      if (parsed && parsed.sections && parsed.sections.length > 0) {
+        return res.json({ success: true, lessonPlan: parsed, modelUsed: geminiResult.modelUsed });
       }
     }
 
-    // Default high quality structured fallback plan
+    // Dynamic, high-quality structured plan tailored to the user's requested topic & preferences
+    const isCircuitRelated = /circuit|ohm|volt|current|resistan|electron|power|ampere/i.test(targetTopic);
     const fallbackPlan = {
       topic: targetTopic,
       estimatedMinutes: parseInt(userTime) || 20,
       level: userLevel,
-      objective: `Master fundamental principles of ${targetTopic} through visual mental models and interactive problem solving.`,
-      prerequisites: ["Elementary arithmetic", "Basic understanding of physical quantities"],
+      objective: `Master core principles and intuitive mental models of ${targetTopic} through interactive visualization and problem solving.`,
+      prerequisites: ["Elementary arithmetic", "Basic foundational concepts"],
       sections: [
         {
           id: "sec-1",
-          title: "Introduction & Intuitive Mental Model",
+          title: `Physical Intuition & Core Definitions of ${targetTopic}`,
           duration: "3 mins",
-          summary: `Establishing core definitions and establishing the physical intuition for ${targetTopic}.`,
-          keyConcept: "Potential Energy & Flow",
+          summary: `Establishing fundamental definitions, building visual mental models, and clarifying the essential mechanics behind ${targetTopic}.`,
+          keyConcept: "Core Foundations & Underlying Mechanism",
           visualType: "diagram",
-          interactivePrompt: "Observe the interactive flow model and identify driving forces.",
+          interactivePrompt: `Explore the interactive foundation visual and identify primary variables in ${targetTopic}.`,
         },
         {
           id: "sec-2",
-          title: "Mathematical Formulation & Governing Equations",
+          title: "Mathematical Governing Laws & Proportionality",
           duration: "5 mins",
-          summary: "Deriving relationships between fundamental variables and examining proportionality.",
-          keyConcept: "Governing Formula (e.g. V = I * R)",
+          summary: `Deconstructing the governing formulas, variables, and mathematical relationships underlying ${targetTopic}.`,
+          keyConcept: isCircuitRelated ? "Governing Equation (V = I * R)" : "Governing Formulation & Rules",
           visualType: "equation",
-          interactivePrompt: "Calculate current when resistance is varied under constant potential.",
+          interactivePrompt: "Observe how changing input parameters dynamically influences the output values.",
         },
         {
           id: "sec-3",
           title: "Interactive Demonstration & Parameter Simulation",
           duration: "6 mins",
-          summary: "Direct hands-on simulation manipulating resistance and observing realtime response.",
-          keyConcept: "Dynamic Equilibrium",
-          visualType: "circuit",
-          interactivePrompt: "Adjust the resistance slider and notice changes in current.",
+          summary: "Hands-on parameter simulation testing physical equilibrium, system limits, and cause-and-effect.",
+          keyConcept: "Dynamic Equilibrium & Rate Control",
+          visualType: isCircuitRelated ? "circuit" : "simulation",
+          interactivePrompt: "Adjust the control sliders and watch the real-time simulation respond.",
         },
         {
           id: "sec-4",
           title: "Misconception Diagnosis & Adaptive Knowledge Check",
           duration: "4 mins",
-          summary: "Targeted scenario-based multiple choice question testing conceptual boundary cases.",
-          keyConcept: "Inverse Proportionality",
+          summary: "Targeted scenario-based multiple-choice question testing conceptual boundary cases and inverse relationships.",
+          keyConcept: "Boundary Analysis & Misconception Remediation",
           visualType: "diagram",
-          interactivePrompt: "Predict system behavior when resistance doubles.",
+          interactivePrompt: "Predict what happens when system resistance or opposing constraints double.",
         },
         {
           id: "sec-5",
-          title: "Synthesis, Application & Next Steps",
+          title: "Practical Synthesis, Review & Next Milestones",
           duration: "2 mins",
-          summary: "Summarizing takeaways and unlocking next milestone on the roadmap.",
-          keyConcept: "Practical Mastery",
+          summary: "Synthesize key takeaways, review performance diagnostics from Teacher Nova, and unlock the next milestone.",
+          keyConcept: "Practical Mastery & Roadmap Advancement",
           visualType: "timeline",
-          interactivePrompt: "Review your performance report and proceed to next module.",
+          interactivePrompt: "Review your performance diagnostic report and advance to the next module.",
         },
       ],
       learningOutcomes: [
-        `Understand the physical intuition behind ${targetTopic}`,
-        "Accurately calculate relationships between key variables",
-        "Overcome common student misconceptions through physical analogies",
+        `Understand the physical and conceptual intuition behind ${targetTopic}`,
+        "Accurately calculate and predict relationships between key governing variables",
+        "Overcome common student misconceptions through intuitive physical analogies",
       ],
     };
 
-    res.json({ success: true, lessonPlan: fallbackPlan });
+    res.json({ success: true, lessonPlan: fallbackPlan, isFallback: true });
   } catch (error: any) {
     console.error("Lesson plan error:", error);
     res.status(500).json({ error: error.message || "Failed to create lesson plan" });
@@ -347,7 +429,7 @@ Follow this JSON schema strictly:
 // 4. Live Student Q&A Agent with RAG Grounding ("Ask Teacher Nova" in classroom)
 app.post("/api/lesson/ask", async (req, res) => {
   try {
-    const { question, topic, currentConcept, language, level, sessionId, documentText, documentChunks } = req.body;
+    const { question, topic, currentConcept, language, level, sessionId, documentChunks } = req.body;
     const userQuery = question || "Can you explain this again?";
     const currentTopic = topic || "Basic Circuits & Ohm's Law";
     const lang = language || "English";
@@ -387,10 +469,7 @@ app.post("/api/lesson/ask", async (req, res) => {
       .map((c) => `[Source: ${c.source}, Page ${c.page || 1}, ${c.section}]:\n${c.text}`)
       .join("\n\n");
 
-    if (process.env.GEMINI_API_KEY) {
-      try {
-        const ai = getGemini();
-        const prompt = `You are Teacher Nova, a warm, encouraging, human-like AI educator teaching a student about "${currentTopic}".
+    const prompt = `You are Teacher Nova, a warm, encouraging, human-like AI educator teaching a student about "${currentTopic}".
 Current Concept being discussed: "${currentConcept || "Resistance vs Current"}".
 Student's preferred language: "${lang}". If the student asks in Hinglish, Hindi, Spanish, etc., answer naturally in that language while keeping technical terms accurate.
 Student level: "${level || "Intermediate"}".
@@ -408,29 +487,23 @@ Provide structured JSON:
   "citations": ["string (e.g. Source: filename, Page X)"]
 }`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3.7-flash",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            temperature: 0.3,
+    const geminiResult = await generateGeminiContent(prompt, {
+      responseMimeType: "application/json",
+      temperature: 0.3,
+    });
+
+    if (geminiResult && geminiResult.text) {
+      const parsed = parseJSONFromText(geminiResult.text);
+      if (parsed && parsed.answer) {
+        return res.json({
+          success: true,
+          response: parsed,
+          grounding: {
+            isGrounded: hasRagContext,
+            retrievedChunksCount: matchedChunks.length,
+            citations: matchedChunks.map((c) => `${c.source} (Page ${c.page || 1}, ${c.section})`),
           },
         });
-
-        if (response.text) {
-          const parsed = JSON.parse(response.text.trim());
-          return res.json({
-            success: true,
-            response: parsed,
-            grounding: {
-              isGrounded: hasRagContext,
-              retrievedChunksCount: matchedChunks.length,
-              citations: matchedChunks.map((c) => `${c.source} (Page ${c.page || 1}, ${c.section})`),
-            },
-          });
-        }
-      } catch (geminiError) {
-        console.warn("Gemini Q&A fallback:", geminiError);
       }
     }
 
@@ -538,10 +611,8 @@ app.post("/api/lesson/evaluate", async (req, res) => {
     const { question, selectedOption, studentAnswer, correctAnswer, topic, currentConcept } = req.body;
     const isCorrect = selectedOption ? selectedOption === correctAnswer : false;
 
-    if (process.env.GEMINI_API_KEY && !isCorrect) {
-      try {
-        const ai = getGemini();
-        const prompt = `You are TeachAI's Misconception Detector & Pedagogical Evaluator.
+    if (!isCorrect) {
+      const prompt = `You are TeachAI's Misconception Detector & Pedagogical Evaluator.
 Topic: "${topic || "Ohm's Law"}"
 Concept: "${currentConcept || "Current vs Resistance"}"
 Question: "${question || "What happens to current when resistance increases while voltage remains constant?"}"
@@ -574,21 +645,16 @@ Output JSON:
   }
 }`;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3.7-flash",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-            temperature: 0.2,
-          },
-        });
+      const geminiResult = await generateGeminiContent(prompt, {
+        responseMimeType: "application/json",
+        temperature: 0.2,
+      });
 
-        if (response.text) {
-          const parsed = JSON.parse(response.text.trim());
+      if (geminiResult && geminiResult.text) {
+        const parsed = parseJSONFromText(geminiResult.text);
+        if (parsed && parsed.misconception) {
           return res.json({ success: true, evaluation: parsed });
         }
-      } catch (geminiError) {
-        console.warn("Gemini evaluation fallback:", geminiError);
       }
     }
 
@@ -655,8 +721,9 @@ app.post("/api/voice/speak", async (req, res) => {
         if (base64Audio) {
           return res.json({ success: true, audioBase64: base64Audio, format: "pcm/24000" });
         }
-      } catch (ttsError) {
-        console.warn("Gemini TTS fallback:", ttsError);
+      } catch (ttsError: any) {
+        // Log gracefully without alarming error traces
+        console.warn("TTS notice:", ttsError?.message || "Using Web Speech synthesis fallback");
       }
     }
 
