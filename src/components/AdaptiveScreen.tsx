@@ -1,19 +1,41 @@
 import React, { useState } from 'react';
 import { ASSETS } from '../data/mockData';
-import { ScreenType } from '../types';
+import { ScreenType, UserAssessmentSummary } from '../types';
 import { Sidebar } from './Sidebar';
 
 interface AdaptiveScreenProps {
   onNavigate: (screen: ScreenType) => void;
+  assessmentSummary?: UserAssessmentSummary;
+  topicTitle?: string;
 }
 
-export const AdaptiveScreen: React.FC<AdaptiveScreenProps> = ({ onNavigate }) => {
-  const [valveTightness, setValveTightness] = useState<number>(75); // 0 (wide open) to 100 (heavily constricted)
+export const AdaptiveScreen: React.FC<AdaptiveScreenProps> = ({
+  onNavigate,
+  assessmentSummary,
+  topicTitle = "Foundational Concepts",
+}) => {
+  const currentTopic = assessmentSummary?.topicTitle || topicTitle;
+  const weakConcept = assessmentSummary?.weakAreas?.[0]?.name || assessmentSummary?.recommendedRevision || `Core Principles of ${currentTopic}`;
+
+  const lowerTopic = currentTopic.toLowerCase();
+  const isPython = lowerTopic.includes('python') || lowerTopic.includes('code') || lowerTopic.includes('programming') || lowerTopic.includes('algorithm');
+  const isBio = lowerTopic.includes('bio') || lowerTopic.includes('cell') || lowerTopic.includes('dna') || lowerTopic.includes('organ') || lowerTopic.includes('gene');
+  const isHistory = lowerTopic.includes('history') || lowerTopic.includes('war') || lowerTopic.includes('revolution') || lowerTopic.includes('century') || lowerTopic.includes('empire');
+  const isCircuit = lowerTopic.includes('circuit') || lowerTopic.includes('ohm') || lowerTopic.includes('electric') || lowerTopic.includes('volt');
+
+  // Interactive slider/toggle states
+  const [valveTightness, setValveTightness] = useState<number>(70);
+  const [pythonVariableVal, setPythonVariableVal] = useState<number>(42);
+  const [bioSoluteConcentration, setBioSoluteConcentration] = useState<number>(65);
+  const [historyEscalationLevel, setHistoryEscalationLevel] = useState<number>(80);
+
   const [selectedFollowup, setSelectedFollowup] = useState<'A' | 'B' | 'C' | null>(null);
   const [followupSubmitted, setFollowupSubmitted] = useState(false);
 
-  // Calculated analogy flow
+  // Calculated dynamic outputs
   const waterFlowPercent = Math.max(10, 100 - valveTightness);
+  const osmoticFlowRate = Math.round(bioSoluteConcentration * 1.4);
+  const conflictProbability = Math.min(100, Math.round(historyEscalationLevel * 1.2));
 
   return (
     <div className="bg-[#faf8ff] text-[#131b2e] flex min-h-[calc(100vh-65px)] w-full font-sans">
@@ -33,16 +55,17 @@ export const AdaptiveScreen: React.FC<AdaptiveScreenProps> = ({ onNavigate }) =>
             </button>
             <div>
               <span className="text-xs uppercase tracking-widest text-[#4648d4] font-bold">
-                Adaptive Pedagogical Engine
+                Adaptive Pedagogical Remediation
               </span>
-              <h1 className="text-lg md:text-2xl font-extrabold text-[#131b2e]">Visual Analogy Breakdown</h1>
+              <h1 className="text-lg md:text-2xl font-extrabold text-[#131b2e]">
+                Intuitive Mental Model Breakdown
+              </h1>
             </div>
           </div>
 
-          {/* Strategy Adapted Badge */}
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-xs font-semibold self-start sm:self-auto shadow-xs">
             <span className="material-symbols-outlined text-[16px] text-amber-600">psychology</span>
-            <span>Misconception Detected & Remediated</span>
+            <span>Targeting: {weakConcept}</span>
           </div>
         </div>
 
@@ -60,11 +83,17 @@ export const AdaptiveScreen: React.FC<AdaptiveScreenProps> = ({ onNavigate }) =>
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="font-bold text-[#131b2e] text-base">Teacher Nova</h3>
                 <span className="bg-[#eff1ff] text-[#4648d4] text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-[#c7c4d7]/60">
-                  Adaptive Strategy: Physical Water Metaphor
+                  Adaptive Strategy: Intuitive Visual Model
                 </span>
               </div>
               <p className="text-sm sm:text-base text-[#464554] leading-relaxed italic">
-                "I noticed you were uncertain about how current reacts when resistance changes. Let's switch from abstract formulas to an intuitive water pipe simulation so the inverse relationship clicks instantly!"
+                {isPython
+                  ? `"I noticed you were working through variable mutability and function execution in ${currentTopic}. Let's inspect an interactive memory state model to see how values update step-by-step!"`
+                  : isBio
+                  ? `"I noticed you were reviewing cellular transport mechanisms in ${currentTopic}. Let's switch to an interactive membrane barrier model so the concentration gradient concept clicks immediately!"`
+                  : isHistory
+                  ? `"I noticed you were analyzing the multi-variable catalysts of ${currentTopic}. Let's inspect an interactive catalyst domino model to trace how tensions escalate into systemic realignments!"`
+                  : `"I noticed you were reviewing governing relationships in ${currentTopic}. Let's switch from abstract formulas to an interactive dynamic flow model so the core intuition clicks instantly!"`}
               </p>
             </div>
           </div>
@@ -75,11 +104,29 @@ export const AdaptiveScreen: React.FC<AdaptiveScreenProps> = ({ onNavigate }) =>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-8 h-8 rounded-lg bg-[#eff1ff] flex items-center justify-center text-[#4648d4]">
-                <span className="material-symbols-outlined text-[20px]">water_drop</span>
+                <span className="material-symbols-outlined text-[20px]">
+                  {isPython ? 'terminal' : isBio ? 'biotech' : isHistory ? 'timeline' : 'water_drop'}
+                </span>
               </div>
               <div>
-                <h2 className="text-base sm:text-lg font-bold text-[#131b2e]">Interactive Water Pipe Simulator</h2>
-                <p className="text-xs text-[#464554]">See how narrowing the valve directly throttles fluid flow</p>
+                <h2 className="text-base sm:text-lg font-bold text-[#131b2e]">
+                  {isPython
+                    ? 'Interactive Variable Memory & Scope Tracer'
+                    : isBio
+                    ? 'Interactive Semi-Permeable Membrane Model'
+                    : isHistory
+                    ? 'Interactive Catalyst & Domino Cascade Simulator'
+                    : 'Interactive Water Pipe Analogy Simulator'}
+                </h2>
+                <p className="text-xs text-[#464554]">
+                  {isPython
+                    ? 'See how variables point to mutable memory locations in real time'
+                    : isBio
+                    ? 'Observe how concentration gradients drive net solute diffusion'
+                    : isHistory
+                    ? 'Trace how compounding political friction triggers historic tipping points'
+                    : 'See how narrowing the valve directly throttles fluid flow'}
+                </p>
               </div>
             </div>
             <span className="text-xs text-[#464554] bg-[#faf8ff] px-3 py-1 rounded-full border border-[#c7c4d7]/70 font-medium">
@@ -87,202 +134,204 @@ export const AdaptiveScreen: React.FC<AdaptiveScreenProps> = ({ onNavigate }) =>
             </span>
           </div>
 
-          {/* Diagram Image & Interactive Valve Simulation */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-            <div className="md:col-span-7 rounded-2xl overflow-hidden border border-[#c7c4d7]/80 shadow-md bg-[#f8f9ff]">
-              <img
-                src={ASSETS.waterPipeDiagram}
-                alt="Water Pipe Analogy Diagram"
-                className="w-full h-auto object-cover"
-              />
-            </div>
-
-            {/* Live Interactive Valve Control */}
-            <div className="md:col-span-5 bg-[#faf8ff] p-5 rounded-2xl border border-[#c7c4d7]/70 flex flex-col gap-4">
-              <span className="text-xs font-bold text-[#4648d4] uppercase tracking-wider">
-                Hands-On Demonstration
-              </span>
-              
-              <div>
-                <div className="flex justify-between items-center text-xs mb-1.5">
-                  <span className="font-bold text-[#131b2e]">Valve Tightness (Resistance R)</span>
-                  <span className="font-bold text-[#7c3aed]">{valveTightness}% Constriction</span>
+          {/* PYTHON INTERACTIVE MODEL */}
+          {isPython && (
+            <div className="bg-[#0f172a] text-slate-100 p-6 rounded-2xl border border-slate-700 shadow-inner flex flex-col gap-4">
+              <div className="flex justify-between items-center text-xs text-slate-400 pb-2 border-b border-slate-800">
+                <span className="font-mono text-emerald-400">Memory Frame: stack_0x7ffe</span>
+                <span>Live State Inspector</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                  <span className="text-xs text-slate-400 block mb-2 font-mono"># Variable Slider Control</span>
+                  <div className="flex justify-between text-xs mb-1">
+                    <span className="text-slate-300 font-mono">counter_val =</span>
+                    <span className="text-emerald-400 font-mono font-bold">{pythonVariableVal}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="1"
+                    max="100"
+                    value={pythonVariableVal}
+                    onChange={(e) => setPythonVariableVal(Number(e.target.value))}
+                    className="w-full accent-emerald-500 cursor-pointer"
+                  />
                 </div>
-                <input
-                  type="range"
-                  min="0"
-                  max="95"
-                  value={valveTightness}
-                  onChange={(e) => setValveTightness(Number(e.target.value))}
-                  className="w-full accent-[#7c3aed] cursor-pointer"
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                  <span className="text-xs text-slate-400 block mb-1 font-mono"># Function Return Output</span>
+                  <div className="p-2 bg-slate-950 rounded text-xs font-mono text-cyan-300">
+                    compute_scaled({pythonVariableVal}) =&gt; {pythonVariableVal * 2}
+                  </div>
+                  <span className="text-[10px] text-slate-500 mt-2">Values in memory update immediately without side-effects.</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* BIOLOGY INTERACTIVE MODEL */}
+          {isBio && (
+            <div className="bg-[#f8fafc] p-6 rounded-2xl border border-sky-200 flex flex-col gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-white p-4 rounded-xl border border-sky-200 shadow-xs">
+                  <div className="flex justify-between text-xs mb-2">
+                    <span className="font-bold text-sky-900">Extracellular Solute Gradient</span>
+                    <span className="font-bold text-sky-600">{bioSoluteConcentration}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="100"
+                    value={bioSoluteConcentration}
+                    onChange={(e) => setBioSoluteConcentration(Number(e.target.value))}
+                    className="w-full accent-sky-600 cursor-pointer"
+                  />
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-sky-200 shadow-xs flex flex-col justify-between">
+                  <span className="text-xs font-bold text-sky-900">Computed Osmotic Pressure:</span>
+                  <div className="w-full h-3 bg-sky-100 rounded-full overflow-hidden mt-1">
+                    <div className="h-full bg-sky-500 rounded-full transition-all duration-300" style={{ width: `${Math.min(100, osmoticFlowRate)}%` }} />
+                  </div>
+                  <span className="text-[11px] text-sky-700 mt-1">Net flow moves down the gradient to reach equilibrium.</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* HISTORY INTERACTIVE MODEL */}
+          {isHistory && (
+            <div className="bg-[#fdfbf7] p-6 rounded-2xl border border-amber-200 flex flex-col gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="bg-white p-4 rounded-xl border border-amber-200 shadow-xs">
+                  <div className="flex justify-between text-xs mb-2">
+                    <span className="font-bold text-amber-950">Precursor Social & Financial Strain</span>
+                    <span className="font-bold text-amber-700">{historyEscalationLevel}% Friction</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="20"
+                    max="100"
+                    value={historyEscalationLevel}
+                    onChange={(e) => setHistoryEscalationLevel(Number(e.target.value))}
+                    className="w-full accent-amber-600 cursor-pointer"
+                  />
+                </div>
+                <div className="bg-white p-4 rounded-xl border border-amber-200 shadow-xs flex flex-col justify-between">
+                  <span className="text-xs font-bold text-amber-950">Likelihood of Systemic Realignment:</span>
+                  <div className="w-full h-3 bg-amber-100 rounded-full overflow-hidden mt-1">
+                    <div className="h-full bg-amber-500 rounded-full transition-all duration-300" style={{ width: `${conflictProbability}%` }} />
+                  </div>
+                  <span className="text-[11px] text-amber-800 mt-1">Compounding structural tension inevitably precipitates decisive revolution.</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* CIRCUIT / DEFAULT WATER PIPE MODEL */}
+          {!isPython && !isBio && !isHistory && (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+              <div className="md:col-span-7 rounded-2xl overflow-hidden border border-[#c7c4d7]/80 shadow-md bg-[#f8f9ff]">
+                <img
+                  src={ASSETS.waterPipeDiagram}
+                  alt="Water Pipe Analogy Diagram"
+                  className="w-full h-auto object-cover"
                 />
               </div>
 
-              {/* Dynamic Flow Output */}
-              <div className="bg-white p-3.5 rounded-xl border border-[#c7c4d7]/60">
-                <div className="flex justify-between items-center text-xs mb-1">
-                  <span className="text-[#464554] font-medium">Resulting Water Flow (Current I):</span>
-                  <span className="font-bold text-[#0284c7]">{waterFlowPercent}% Output</span>
-                </div>
-                <div className="w-full h-2.5 bg-[#dae2fd]/50 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#0284c7] to-[#38bdf8] rounded-full transition-all duration-300"
-                    style={{ width: `${waterFlowPercent}%` }}
+              <div className="md:col-span-5 bg-[#faf8ff] p-5 rounded-2xl border border-[#c7c4d7]/70 flex flex-col gap-4">
+                <span className="text-xs font-bold text-[#4648d4] uppercase tracking-wider">
+                  Hands-On Demonstration
+                </span>
+                
+                <div>
+                  <div className="flex justify-between items-center text-xs mb-1.5">
+                    <span className="font-bold text-[#131b2e]">Valve Tightness (Resistance R)</span>
+                    <span className="font-bold text-[#7c3aed]">{valveTightness}% Constriction</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="95"
+                    value={valveTightness}
+                    onChange={(e) => setValveTightness(Number(e.target.value))}
+                    className="w-full accent-[#7c3aed] cursor-pointer"
                   />
                 </div>
+
+                <div className="bg-white p-3.5 rounded-xl border border-[#c7c4d7]/60">
+                  <div className="flex justify-between items-center text-xs mb-1">
+                    <span className="text-[#464554] font-medium">Resulting Flow (Current I):</span>
+                    <span className="font-bold text-[#0284c7]">{waterFlowPercent}% Output</span>
+                  </div>
+                  <div className="w-full h-2.5 bg-[#dae2fd]/50 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-[#0284c7] to-[#38bdf8] rounded-full transition-all duration-300"
+                      style={{ width: `${waterFlowPercent}%` }}
+                    />
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-[#464554] italic leading-relaxed">
+                  Notice: Tightening the valve (increasing Resistance) directly reduces throughput.
+                </p>
               </div>
-
-              <p className="text-[11px] text-[#464554] italic leading-relaxed">
-                Notice: When you tighten the valve (increase Resistance), the water molecules must slow down (Current drops).
-              </p>
             </div>
-          </div>
+          )}
 
-          {/* 3 Analogous Components */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
-            {/* Voltage */}
-            <div className="bg-[#f0f9ff] border border-[#bae6fd] p-4 rounded-xl flex flex-col">
-              <div className="flex items-center gap-2 text-[#0284c7] mb-2">
-                <span className="material-symbols-outlined text-[20px]">speed</span>
-                <h4 className="font-bold text-xs uppercase tracking-wider">Voltage (V)</h4>
-              </div>
-              <p className="font-bold text-sm text-[#0369a1] mb-1">Water Pressure (Pump)</p>
-              <p className="text-xs text-[#334155] leading-relaxed">
-                The pump pushing water through the circuit pipe with mechanical force.
-              </p>
-            </div>
-
-            {/* Resistance */}
-            <div className="bg-[#faf5ff] border border-[#d8b4fe] p-4 rounded-xl flex flex-col relative overflow-hidden">
-              <div className="flex items-center gap-2 text-[#7c3aed] mb-2">
-                <span className="material-symbols-outlined text-[20px]">tune</span>
-                <h4 className="font-bold text-xs uppercase tracking-wider">Resistance (R)</h4>
-              </div>
-              <p className="font-bold text-sm text-[#6b21a8] mb-1">Pipe Constriction (Valve)</p>
-              <p className="text-xs text-[#334155] leading-relaxed">
-                A valve narrowing the pipe cross-section, restricting electron passage.
-              </p>
-            </div>
-
-            {/* Current */}
-            <div className="bg-[#fffbeb] border border-[#fde68a] p-4 rounded-xl flex flex-col">
-              <div className="flex items-center gap-2 text-[#d97706] mb-2">
-                <span className="material-symbols-outlined text-[20px]">water</span>
-                <h4 className="font-bold text-xs uppercase tracking-wider">Current (I)</h4>
-              </div>
-              <p className="font-bold text-sm text-[#b45309] mb-1">Flow Rate (Liters/Sec)</p>
-              <p className="text-xs text-[#334155] leading-relaxed">
-                The actual amount of charged particles passing through the wire per second.
-              </p>
-            </div>
-          </div>
-
-          {/* Core Takeaway Banner */}
-          <div className="bg-gradient-to-r from-[#eff1ff] to-[#f5f3ff] border border-[#c7c4d7]/80 p-4 rounded-xl flex items-center gap-3">
-            <span className="material-symbols-outlined text-[#4648d4] text-[24px] shrink-0">lightbulb</span>
-            <p className="text-xs sm:text-sm text-[#131b2e]">
-              <span className="font-bold text-[#131b2e]">The Fundamental Rule:</span> If pressure (voltage) stays constant and you squeeze the pipe tighter (higher resistance), the flow (current) <span className="text-[#0284c7] font-bold">must decrease</span>!
+          {/* Follow-up Question Card */}
+          <div className="bg-[#f8f9ff] border border-[#c7c4d7]/60 p-5 rounded-2xl mt-2">
+            <h3 className="font-bold text-xs uppercase tracking-wider text-[#4648d4] mb-2 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[16px]">verified</span>
+              Intuition Checkpoint Question
+            </h3>
+            <p className="text-xs sm:text-sm font-semibold text-[#131b2e] mb-4">
+              In {currentTopic}, when system constraints or resistance increase while driving force stays constant, what is the expected outcome?
             </p>
-          </div>
-        </div>
 
-        {/* Immediate Follow-Up Mastery Verification Card */}
-        <div className="bg-white border border-[#c7c4d7]/70 rounded-3xl p-5 md:p-6 shadow-sm mb-6 flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="material-symbols-outlined text-[#4648d4] text-[22px]">verified_user</span>
-              <h3 className="font-bold text-sm md:text-base text-[#131b2e]">Quick Mastery Check</h3>
-            </div>
-            <span className="text-[11px] text-[#4648d4] font-bold bg-[#eff1ff] px-2.5 py-1 rounded-full border border-[#c7c4d7]/50">
-              Confirm Understanding
-            </span>
-          </div>
-
-          <p className="text-xs sm:text-sm font-semibold text-[#131b2e]">
-            If a circuit operates on a steady 12V battery and you double the resistance from 4Ω to 8Ω, what happens to the current?
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {[
-              { key: 'A', text: 'Current doubles (from 3A to 6A)' },
-              { key: 'B', text: 'Current is halved (from 3A to 1.5A)' },
-              { key: 'C', text: 'Current stays unchanged at 3A' },
-            ].map((opt) => {
-              const isSelected = selectedFollowup === opt.key;
-              const isCorrect = followupSubmitted && opt.key === 'B';
-              const isWrong = followupSubmitted && isSelected && opt.key !== 'B';
-
-              return (
+            <div className="space-y-2 mb-4">
+              {[
+                { key: 'A', text: 'Throughput / Flow decreases proportionally' },
+                { key: 'B', text: 'Throughput multiplies to infinity' },
+                { key: 'C', text: 'No change occurs under any conditions' },
+              ].map((opt) => (
                 <div
                   key={opt.key}
                   onClick={() => !followupSubmitted && setSelectedFollowup(opt.key as any)}
-                  className={`p-3.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer flex items-center gap-2.5 ${
-                    isCorrect
-                      ? 'bg-emerald-50 border-emerald-500 text-emerald-950'
-                      : isWrong
-                      ? 'bg-rose-50 border-rose-400 text-rose-950'
-                      : isSelected
-                      ? 'bg-[#eff1ff] border-[#4648d4] text-[#131b2e]'
-                      : 'bg-white border-[#c7c4d7]/70 hover:bg-[#faf8ff] text-[#131b2e]'
+                  className={`p-3 rounded-xl border text-xs flex items-center gap-2.5 cursor-pointer transition-all ${
+                    selectedFollowup === opt.key
+                      ? 'bg-[#eff1ff] border-[#4648d4] font-bold text-[#4648d4]'
+                      : 'bg-white border-[#c7c4d7]/70 text-[#131b2e] hover:bg-[#f2f3ff]'
                   }`}
                 >
-                  <span className="w-6 h-6 rounded-md bg-[#eaedff] flex items-center justify-center font-bold text-[11px] text-[#4648d4]">
+                  <span className="w-5 h-5 rounded-full bg-[#4648d4] text-white flex items-center justify-center text-[10px] font-bold">
                     {opt.key}
                   </span>
-                  <span className="flex-1">{opt.text}</span>
+                  <span>{opt.text}</span>
                 </div>
-              );
-            })}
-          </div>
-
-          {!followupSubmitted ? (
-            <button
-              disabled={!selectedFollowup}
-              onClick={() => setFollowupSubmitted(true)}
-              className="self-end px-5 py-2 bg-[#4648d4] hover:bg-[#372abf] disabled:opacity-40 text-white text-xs font-bold rounded-xl transition-all shadow-xs cursor-pointer"
-            >
-              Verify Answer
-            </button>
-          ) : (
-            <div className="bg-emerald-50 border border-emerald-400 p-3.5 rounded-xl text-xs text-emerald-950 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-emerald-600 text-[20px]">check_circle</span>
-                <span><strong>Concept Mastered!</strong> I = 12/8 = 1.5A. Doubling resistance cuts current in half.</span>
-              </div>
-              <button
-                onClick={() => onNavigate('results')}
-                className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors cursor-pointer"
-              >
-                View Mastery Report
-              </button>
+              ))}
             </div>
-          )}
-        </div>
 
-        {/* Actions Footer */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-2 border-t border-[#c7c4d7]/60">
-          <button
-            onClick={() => onNavigate('classroom')}
-            className="text-xs text-[#464554] hover:text-[#131b2e] font-semibold flex items-center gap-1.5 cursor-pointer"
-          >
-            <span className="material-symbols-outlined text-[18px]">replay</span>
-            Review Classroom Lecture
-          </button>
-
-          <div className="flex gap-3 w-full sm:w-auto">
-            <button
-              onClick={() => onNavigate('question')}
-              className="flex-1 sm:flex-initial px-5 py-2.5 bg-white hover:bg-[#f2f3ff] border border-[#c7c4d7]/70 text-[#131b2e] rounded-xl text-xs font-bold transition-colors cursor-pointer"
-            >
-              Retake Question
-            </button>
-            <button
-              onClick={() => onNavigate('results')}
-              className="flex-1 sm:flex-initial px-6 py-2.5 bg-gradient-to-r from-[#4648d4] to-[#6063ee] text-white rounded-xl text-xs font-bold hover:opacity-95 shadow-sm flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <span>Complete Lesson</span>
-              <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
-            </button>
+            {!followupSubmitted ? (
+              <button
+                onClick={() => setFollowupSubmitted(true)}
+                disabled={!selectedFollowup}
+                className="px-5 py-2 bg-[#4648d4] hover:bg-[#372abf] disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-all"
+              >
+                Confirm Intuition
+              </button>
+            ) : (
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-900 flex items-center justify-between">
+                <span className="font-semibold flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-emerald-600 text-[18px]">check_circle</span>
+                  Perfect! The mental model is verified. Ready to review your updated mastery path!
+                </span>
+                <button
+                  onClick={() => onNavigate('results')}
+                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-lg cursor-pointer"
+                >
+                  View Performance
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

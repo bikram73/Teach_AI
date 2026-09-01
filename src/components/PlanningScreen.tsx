@@ -17,65 +17,257 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
   const [activeSection, setActiveSection] = useState<number>(0);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const plan: LessonPlan = customPlan || {
-    topic: formState?.topicText || (formState?.sourceMaterial === 'upload' ? 'Uploaded Physics Material: Circuits & Electrodynamics' : "Newton's Laws & Dynamics"),
-    estimatedMinutes: 20,
-    level: formState?.currentLevel || 'Intermediate',
-    objective: 'Build an intuitive mental model of current, voltage, and resistance, test understanding with real-world problems, and master governing formulas.',
-    prerequisites: ['Basic algebraic manipulation', 'Concept of physical force & energy'],
-    sections: [
-      {
-        id: 'sec-1',
-        title: 'Physical Intuition & Core Definitions',
-        duration: '4 mins',
-        summary: 'Establish the foundational concepts of charge flow, potential difference, and mechanical resistance using visual metaphors.',
-        keyConcept: 'Charge Flow & Potential Difference',
-        visualType: 'diagram',
-        interactivePrompt: 'Observe the interactive charge flow simulator and identify what forces propel the particles.',
-      },
-      {
-        id: 'sec-2',
-        title: "Mathematical Governing Laws (Ohm's Formulation)",
-        duration: '5 mins',
-        summary: "Deconstruct the formula V = I × R, examine direct and inverse proportionality, and calculate simple numerical examples.",
-        keyConcept: 'Proportionality & Rate Limiting',
-        visualType: 'equation',
-        interactivePrompt: 'Adjust voltage and calculate resulting current across fixed resistance loads.',
-      },
-      {
-        id: 'sec-3',
-        title: 'Interactive Circuit Workbench Demonstration',
-        duration: '6 mins',
-        summary: 'Hands-on interactive circuit where you can adjust resistance values and see real-time current throttling.',
-        keyConcept: 'Dynamic Equilibrium & Resistance',
-        visualType: 'circuit',
-        interactivePrompt: 'Increase load resistance from 10Ω to 50Ω and watch the electron velocity drop.',
-      },
-      {
-        id: 'sec-4',
-        title: 'Interactive Checkpoint & Misconception Diagnosis',
-        duration: '3 mins',
-        summary: 'Targeted boundary questions designed to uncover common student misconceptions.',
-        keyConcept: 'Inverse Relationship Boundary Check',
-        visualType: 'diagram',
-        interactivePrompt: 'Predict what happens to current if resistance increases at constant voltage.',
-      },
-      {
-        id: 'sec-5',
-        title: 'Adaptive Synthesis & Performance Feedback',
-        duration: '2 mins',
-        summary: 'Consolidate takeaways, receive personalized diagnostic feedback from Teacher Nova, and unlock the next milestone.',
-        keyConcept: 'Conceptual Mastery & Next Milestone',
-        visualType: 'timeline',
-        interactivePrompt: 'Review your personalized mastery scorecard and advance your roadmap.',
-      },
-    ],
-    learningOutcomes: [
-      'Grasp the physical meaning of Voltage (Push), Current (Flow), and Resistance (Restriction)',
-      'Accurately apply governing formulas to predict circuit behavior',
-      'Overcome common misconceptions regarding inverse proportionality',
-    ],
+  const topicName = formState?.topicText || (formState?.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Subject') : "Computer Science & Programming");
+
+  // Determine dynamic subject-aware default plan if customPlan is not passed
+  const getSubjectAwarePlan = (): LessonPlan => {
+    const lower = topicName.toLowerCase();
+    
+    if (lower.includes('python') || lower.includes('code') || lower.includes('programming') || lower.includes('java') || lower.includes('algorithm')) {
+      return {
+        topic: topicName,
+        estimatedMinutes: 20,
+        level: formState?.currentLevel || 'Intermediate',
+        objective: `Master fundamental syntax, variables, data structures, and functional flow in ${topicName}.`,
+        prerequisites: ['Basic logical reasoning', 'Text editor navigation'],
+        sections: [
+          {
+            id: 'sec-1',
+            title: `Syntax & Core Variable Abstractions`,
+            duration: '4 mins',
+            summary: `Establish how ${topicName} assigns dynamic variables, manages types in memory, and prints outputs.`,
+            keyConcept: 'Variables & Data Types',
+            visualType: 'code',
+            interactivePrompt: 'Inspect the code snippet and observe variable memory assignment.',
+          },
+          {
+            id: 'sec-2',
+            title: 'Control Flow, Conditionals & Branching',
+            duration: '5 mins',
+            summary: 'Learn how if/elif/else statements guide program execution based on runtime conditions.',
+            keyConcept: 'Conditional Logic',
+            visualType: 'code',
+            interactivePrompt: 'Evaluate boolean conditionals and trace the active execution branch.',
+          },
+          {
+            id: 'sec-3',
+            title: 'Functions, Arguments & Scope',
+            duration: '6 mins',
+            summary: 'Deconstruct modular function definitions, parameter passing, and return value mechanics.',
+            keyConcept: 'Modular Encapsulation',
+            visualType: 'code',
+            interactivePrompt: 'Call custom functions and inspect parameter scope inside the live sandbox.',
+          },
+          {
+            id: 'sec-4',
+            title: 'Iteration, Loops & List Comprehensions',
+            duration: '3 mins',
+            summary: 'Traverse collections sequentially with for/while loops and filter data efficiently.',
+            keyConcept: 'Iterative Processing',
+            visualType: 'code',
+            interactivePrompt: 'Run an iteration loop to transform list items in real time.',
+          },
+          {
+            id: 'sec-5',
+            title: 'Diagnostic Code Verification & Synthesis',
+            duration: '2 mins',
+            summary: 'Test edge cases, fix subtle syntax bugs, and review mastery recommendations.',
+            keyConcept: 'Code Debugging & Synthesis',
+            visualType: 'code',
+            interactivePrompt: 'Complete the interactive code challenge to verify mastery.',
+          },
+        ],
+        learningOutcomes: [
+          `Write and debug idiomatic ${topicName} scripts`,
+          'Understand memory models and variable lifetimes',
+          'Implement modular, reusable functions and control flow',
+        ],
+      };
+    } else if (lower.includes('bio') || lower.includes('cell') || lower.includes('dna') || lower.includes('organ') || lower.includes('gene')) {
+      return {
+        topic: topicName,
+        estimatedMinutes: 20,
+        level: formState?.currentLevel || 'Intermediate',
+        objective: `Understand the anatomical architecture, metabolic pathways, and biological mechanisms of ${topicName}.`,
+        prerequisites: ['Basic high school biology', 'Concept of organic molecules'],
+        sections: [
+          {
+            id: 'sec-1',
+            title: `Structural Architecture of ${topicName}`,
+            duration: '4 mins',
+            summary: 'Identify the key organelles and structural components forming the biological boundary.',
+            keyConcept: 'Organelle Organization',
+            visualType: 'diagram',
+            interactivePrompt: 'Click through the interactive cellular diagram to inspect each organelle.',
+          },
+          {
+            id: 'sec-2',
+            title: 'Metabolic & Chemical Pathways',
+            duration: '5 mins',
+            summary: 'Trace how energy (ATP) is generated, transferred, and utilized across biochemical stages.',
+            keyConcept: 'ATP Energy Generation',
+            visualType: 'diagram',
+            interactivePrompt: 'Follow the chemical cascade from substrate entry to product yield.',
+          },
+          {
+            id: 'sec-3',
+            title: 'Membrane Transport & Osmotic Balance',
+            duration: '6 mins',
+            summary: 'Examine active vs. passive diffusion through selective phospholipid channels.',
+            keyConcept: 'Selective Permeability',
+            visualType: 'diagram',
+            interactivePrompt: 'Adjust solute concentrations to observe osmotic equilibrium.',
+          },
+          {
+            id: 'sec-4',
+            title: 'Cellular Regulation & Genetic Expression',
+            duration: '3 mins',
+            summary: 'Understand enzyme regulation and transcription triggers responding to external stimuli.',
+            keyConcept: 'Homeostasis & Feedback Loops',
+            visualType: 'diagram',
+            interactivePrompt: 'Inspect negative feedback loops in action.',
+          },
+          {
+            id: 'sec-5',
+            title: 'Mastery Synthesis & System Assessment',
+            duration: '2 mins',
+            summary: 'Consolidate physiological insights and test conceptual relationships.',
+            keyConcept: 'System Synthesis',
+            visualType: 'diagram',
+            interactivePrompt: 'Review your personalized diagnostic summary.',
+          },
+        ],
+        learningOutcomes: [
+          'Differentiate distinct cellular components and their primary roles',
+          'Describe how metabolic pathways sustain life processes',
+          'Predict cellular responses to osmotic and environmental changes',
+        ],
+      };
+    } else if (lower.includes('history') || lower.includes('war') || lower.includes('revolution') || lower.includes('century') || lower.includes('empire')) {
+      return {
+        topic: topicName,
+        estimatedMinutes: 20,
+        level: formState?.currentLevel || 'Intermediate',
+        objective: `Analyze the socioeconomic catalysts, pivotal turning points, and enduring geopolitical consequences of ${topicName}.`,
+        prerequisites: ['General world geography', 'Basic chronological understanding'],
+        sections: [
+          {
+            id: 'sec-1',
+            title: `Precursor Conditions & Societal Catalysts`,
+            duration: '4 mins',
+            summary: `Examine the underlying economic tensions, ideological shifts, and triggers that ignited ${topicName}.`,
+            keyConcept: 'Structural Preconditions',
+            visualType: 'timeline',
+            interactivePrompt: 'Explore the chronological timeline to identify early warning signs.',
+          },
+          {
+            id: 'sec-2',
+            title: 'Outbreak & Initial Mobilization',
+            duration: '5 mins',
+            summary: 'Trace key initial campaigns, leadership decisions, and the rapid escalation of events.',
+            keyConcept: 'Decisive Catalysts',
+            visualType: 'timeline',
+            interactivePrompt: 'Step through key early declarations and strategic alliances.',
+          },
+          {
+            id: 'sec-3',
+            title: 'The Turning Point: Critical Campaigns',
+            duration: '6 mins',
+            summary: 'Analyze the pivotal battle or treaty that shifted momentum irreversibly.',
+            keyConcept: 'Strategic Inflection Points',
+            visualType: 'timeline',
+            interactivePrompt: 'Inspect the tactical map and milestone timeline.',
+          },
+          {
+            id: 'sec-4',
+            title: 'Resolution, Treaties & Institutional Reform',
+            duration: '3 mins',
+            summary: 'Evaluate the peace negotiations, border changes, and new legal frameworks established.',
+            keyConcept: 'Post-Conflict Realignments',
+            visualType: 'timeline',
+            interactivePrompt: 'Review the terms of settlement and geopolitical restructuring.',
+          },
+          {
+            id: 'sec-5',
+            title: 'Historical Synthesis & Modern Resonance',
+            duration: '2 mins',
+            summary: 'Connect historical outcomes to contemporary institutions and lessons learned.',
+            keyConcept: 'Enduring Legacy',
+            visualType: 'timeline',
+            interactivePrompt: 'Test your understanding of historical cause and effect.',
+          },
+        ],
+        learningOutcomes: [
+          'Identify key socioeconomic triggers and catalysts',
+          'Trace chronological turning points and strategic shifts',
+          'Evaluate lasting impacts on modern governance and society',
+        ],
+      };
+    }
+
+    // Default STEM / General topic plan
+    return {
+      topic: topicName,
+      estimatedMinutes: 20,
+      level: formState?.currentLevel || 'Intermediate',
+      objective: `Build an intuitive mental model of ${topicName}, explore core governing principles, and master practical applications.`,
+      prerequisites: ['Basic introductory concepts', 'Analytical reasoning'],
+      sections: [
+        {
+          id: 'sec-1',
+          title: `Foundational Principles & Intuition of ${topicName}`,
+          duration: '4 mins',
+          summary: `Establish the foundational concepts, definitions, and mental models of ${topicName}.`,
+          keyConcept: 'Core Definitions & Foundations',
+          visualType: 'diagram',
+          interactivePrompt: 'Explore the interactive visual model on the whiteboard.',
+        },
+        {
+          id: 'sec-2',
+          title: `Governing Laws & Analytical Mechanisms`,
+          duration: '5 mins',
+          summary: `Deconstruct the essential relationships, governing rules, and direct proportionalities in ${topicName}.`,
+          keyConcept: 'System Mechanics & Rules',
+          visualType: 'formula',
+          interactivePrompt: 'Manipulate key parameters to see how the system responds in real time.',
+        },
+        {
+          id: 'sec-3',
+          title: 'Interactive System Workbench & Simulation',
+          duration: '6 mins',
+          summary: 'Hands-on interactive testing where you adjust inputs and observe dynamic outputs.',
+          keyConcept: 'Dynamic Equilibrium & Flow',
+          visualType: 'simulation',
+          interactivePrompt: 'Test boundary conditions and observe parameter responses.',
+        },
+        {
+          id: 'sec-4',
+          title: 'Targeted Checkpoint & Misconception Diagnosis',
+          duration: '3 mins',
+          summary: 'Targeted boundary questions designed to uncover common student misconceptions.',
+          keyConcept: 'Boundary Verification',
+          visualType: 'diagram',
+          interactivePrompt: 'Predict outcomes under varied constraint configurations.',
+        },
+        {
+          id: 'sec-5',
+          title: 'Adaptive Synthesis & Performance Feedback',
+          duration: '2 mins',
+          summary: 'Consolidate takeaways, receive diagnostic feedback from Teacher Nova, and advance your roadmap.',
+          keyConcept: 'Mastery & Synthesis',
+          visualType: 'timeline',
+          interactivePrompt: 'Review your personalized mastery scorecard and advance your roadmap.',
+        },
+      ],
+      learningOutcomes: [
+        `Grasp the core operational principles of ${topicName}`,
+        'Accurately predict system behavior under changing constraints',
+        'Overcome common conceptual misconceptions with intuitive models',
+      ],
+    };
   };
+
+  const plan: LessonPlan = customPlan || getSubjectAwarePlan();
 
   const handleStartClassroom = () => {
     setIsGenerating(true);

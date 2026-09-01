@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ScreenType, UserAssessmentSummary } from '../types';
 import { Sidebar } from './Sidebar';
 
@@ -6,68 +6,219 @@ interface LearningPathScreenProps {
   onNavigate: (screen: ScreenType) => void;
   assessmentSummary?: UserAssessmentSummary;
   topicTitle?: string;
+  documentText?: string;
+  userLevel?: string;
 }
 
 export const LearningPathScreen: React.FC<LearningPathScreenProps> = ({
   onNavigate,
   assessmentSummary,
-  topicTitle = "Basic Circuits & Ohm's Law",
+  topicTitle = "Foundational Curriculum",
+  documentText,
+  userLevel = "Intermediate",
 }) => {
+  const currentTopic = assessmentSummary?.topicTitle || topicTitle;
   const score = assessmentSummary?.scorePercent ?? 80;
   const isMasteredQuiz = score >= 75;
 
-  // Dynamically constructed roadmap nodes based on assessment
-  const nodes = [
-    {
-      id: 'n1',
-      title: 'Circuit Fundamentals: Charge, Voltage & Current',
-      status: 'mastered',
-      icon: 'bolt',
-      info: '100% Mastery • Completed with verified potential difference intuition.',
-    },
-    {
-      id: 'n2',
-      title: "Ohm's Law & Resistance Constraints (I = V / R)",
-      status: isMasteredQuiz ? 'mastered' : 'needs_review',
-      icon: isMasteredQuiz ? 'verified' : 'psychology',
-      info: isMasteredQuiz
-        ? `Scored ${score}% in assessment • Mathematical relations verified.`
-        : `Scored ${score}% • Needs review: ${assessmentSummary?.recommendedRevision || 'Inverse Proportionality'}`,
-    },
-    ...(assessmentSummary && assessmentSummary.weakAreas.length > 0
-      ? [
-          {
-            id: 'n_adaptive',
-            title: `Adaptive Remediation: ${assessmentSummary.recommendedRevision}`,
-            status: 'in_progress',
-            icon: 'auto_awesome',
-            info: 'Interactive water pipe simulation & guided targeted exercises.',
-            isAdaptiveRemediation: true,
-          },
-        ]
-      : []),
-    {
-      id: 'n3',
-      title: 'Electrical Power & Joule Heating (P = V · I = I²R)',
-      status: isMasteredQuiz ? 'in_progress' : 'upcoming',
-      icon: 'electric_meter',
-      info: isMasteredQuiz ? 'Active next module • Estimated 15 minutes' : 'Unlocks after mastering Ohm’s Law',
-    },
-    {
-      id: 'n4',
-      title: 'Series & Parallel Resistor Networks',
-      status: 'upcoming',
-      icon: 'device_hub',
-      info: 'Equivalent resistance, Kirchhoff’s Current & Voltage Laws (KCL / KVL)',
-    },
-    {
-      id: 'n5',
-      title: 'Capacitive & Inductive Transients in AC Circuits',
-      status: 'upcoming',
-      icon: 'tune',
-      info: 'Time constants (τ = RC), phase angles, and reactance calculations.',
-    },
-  ];
+  // Generate subject-aware fallback roadmap
+  const getSubjectAwareRoadmap = (topic: string) => {
+    const lower = topic.toLowerCase();
+    if (lower.includes('python') || lower.includes('code') || lower.includes('programming')) {
+      return [
+        {
+          id: 'n1',
+          title: `Python Foundations: Syntax, Types & Variables`,
+          status: 'mastered',
+          icon: 'terminal',
+          info: '100% Mastery • Variable assignment, dynamic typing, and primitive values verified.',
+        },
+        {
+          id: 'n2',
+          title: 'Functions, Parameters & Return Scope',
+          status: isMasteredQuiz ? 'mastered' : 'needs_review',
+          icon: isMasteredQuiz ? 'verified' : 'psychology',
+          info: isMasteredQuiz
+            ? `Scored ${score}% in assessment • Modular code encapsulation verified.`
+            : `Scored ${score}% • Review needed on variable scope and parameter passing.`,
+        },
+        {
+          id: 'n3',
+          title: 'Data Structures: Lists, Dictionaries & Tuples',
+          status: isMasteredQuiz ? 'in_progress' : 'upcoming',
+          icon: 'data_object',
+          info: isMasteredQuiz ? 'Active next module • Mutable collections and key-value mapping.' : 'Unlocks after mastering Functions.',
+        },
+        {
+          id: 'n4',
+          title: 'Control Flow, Iteration & List Comprehensions',
+          status: 'upcoming',
+          icon: 'loop',
+          info: 'Conditionals, for-loops, while-loops, and expressive comprehension syntax.',
+        },
+        {
+          id: 'n5',
+          title: 'Object-Oriented Programming: Classes & Inheritance',
+          status: 'upcoming',
+          icon: 'account_tree',
+          info: 'Custom classes, encapsulation, magic methods (__init__, __repr__), and polymorphism.',
+        },
+      ];
+    } else if (lower.includes('bio') || lower.includes('cell') || lower.includes('dna')) {
+      return [
+        {
+          id: 'n1',
+          title: 'Cellular Architecture & Organelles',
+          status: 'mastered',
+          icon: 'biotech',
+          info: '100% Mastery • Organelle roles, membrane barriers, and nuclei verified.',
+        },
+        {
+          id: 'n2',
+          title: 'Membrane Transport & Osmotic Gradients',
+          status: isMasteredQuiz ? 'mastered' : 'needs_review',
+          icon: isMasteredQuiz ? 'verified' : 'psychology',
+          info: isMasteredQuiz
+            ? `Scored ${score}% in assessment • Active vs passive transport verified.`
+            : `Scored ${score}% • Needs review on concentration gradients & ATP pumps.`,
+        },
+        {
+          id: 'n3',
+          title: 'Cellular Respiration & ATP Synthesis',
+          status: isMasteredQuiz ? 'in_progress' : 'upcoming',
+          icon: 'bolt',
+          info: isMasteredQuiz ? 'Active next module • Glycolysis, Krebs cycle, and electron transport.' : 'Unlocks after membrane dynamics.',
+        },
+        {
+          id: 'n4',
+          title: 'Molecular Genetics & DNA Transcription',
+          status: 'upcoming',
+          icon: 'device_hub',
+          info: 'Replication forks, mRNA transcription, ribosomal translation, and protein folding.',
+        },
+        {
+          id: 'n5',
+          title: 'Homeostatic Regulation & Feedback Loops',
+          status: 'upcoming',
+          icon: 'balance',
+          info: 'Negative feedback systems, endocrine signaling, and physiological balance.',
+        },
+      ];
+    } else if (lower.includes('history') || lower.includes('war') || lower.includes('revolution')) {
+      return [
+        {
+          id: 'n1',
+          title: `Precursor Conditions & Societal Catalysts`,
+          status: 'mastered',
+          icon: 'history_edu',
+          info: '100% Mastery • Economic stress, institutional friction, and intellectual catalysts verified.',
+        },
+        {
+          id: 'n2',
+          title: 'Strategic Turning Points & Major Escalation',
+          status: isMasteredQuiz ? 'mastered' : 'needs_review',
+          icon: isMasteredQuiz ? 'verified' : 'psychology',
+          info: isMasteredQuiz
+            ? `Scored ${score}% in assessment • Decisive historical events verified.`
+            : `Scored ${score}% • Needs review on chronological trigger sequences.`,
+        },
+        {
+          id: 'n3',
+          title: 'Institutional Collapse & Revolutionary Governance',
+          status: isMasteredQuiz ? 'in_progress' : 'upcoming',
+          icon: 'gavel',
+          info: isMasteredQuiz ? 'Active next module • Constitutional declarations and transition power.' : 'Unlocks after strategic turning points.',
+        },
+        {
+          id: 'n4',
+          title: 'Geopolitical Realignments & Treaties',
+          status: 'upcoming',
+          icon: 'public',
+          info: 'Post-conflict settlements, diplomatic balance of power, and global ramifications.',
+        },
+        {
+          id: 'n5',
+          title: 'Modern Resonance & Enduring Legal Reform',
+          status: 'upcoming',
+          icon: 'account_balance',
+          info: 'Lasting civil liberties, legal frameworks, and contemporary institutional evolution.',
+        },
+      ];
+    }
+
+    return [
+      {
+        id: 'n1',
+        title: `Foundations of ${topic}`,
+        status: 'mastered',
+        icon: 'menu_book',
+        info: '100% Mastery • Core principles and terminology verified.',
+      },
+      {
+        id: 'n2',
+        title: `Governing Principles & System Relationships`,
+        status: isMasteredQuiz ? 'mastered' : 'needs_review',
+        icon: isMasteredQuiz ? 'verified' : 'psychology',
+        info: isMasteredQuiz
+          ? `Scored ${score}% in assessment • Core intuition verified.`
+          : `Scored ${score}% • Needs review: ${assessmentSummary?.recommendedRevision || 'Fundamental Relationships'}`,
+      },
+      {
+        id: 'n3',
+        title: `Applied Analytical Problem Solving in ${topic}`,
+        status: isMasteredQuiz ? 'in_progress' : 'upcoming',
+        icon: 'tune',
+        info: isMasteredQuiz ? 'Active next module • Multi-variable diagnostic exercises.' : 'Unlocks after mastering governing rules.',
+      },
+      {
+        id: 'n4',
+        title: `Advanced Structural Concepts in ${topic}`,
+        status: 'upcoming',
+        icon: 'architecture',
+        info: 'Complex scenarios, composite systems, and boundary constraints.',
+      },
+      {
+        id: 'n5',
+        title: `Mastery Synthesis & Real-World Case Studies`,
+        status: 'upcoming',
+        icon: 'stars',
+        info: 'Full project evaluation, practical scenarios, and capstone challenge.',
+      },
+    ];
+  };
+
+  const [nodes, setNodes] = useState(() => getSubjectAwareRoadmap(currentTopic));
+
+  // Fetch dynamic roadmap from backend
+  useEffect(() => {
+    let isMounted = true;
+    const fetchRoadmap = async () => {
+      try {
+        const res = await fetch('/api/lesson/roadmap', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topic: currentTopic,
+            level: userLevel,
+            documentText,
+          }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.nodes && data.nodes.length > 0) {
+            setNodes(data.nodes);
+          }
+        }
+      } catch (err) {
+        console.warn('Using client fallback roadmap:', err);
+      }
+    };
+
+    fetchRoadmap();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentTopic, userLevel, documentText]);
 
   const masteredCount = nodes.filter((n) => n.status === 'mastered').length;
   const totalCount = nodes.length;
@@ -88,7 +239,7 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = ({
               Dynamic Adaptive Roadmap
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-[#131b2e] tracking-tight">
-              Curriculum: {topicTitle}
+              Curriculum: {currentTopic}
             </h1>
             <p className="text-sm text-[#464554] mt-1">
               Personalized syllabus generated by Nova. Updates in real-time as you complete lessons & quizzes.
@@ -149,23 +300,19 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = ({
                     }`}
                   >
                     <span className="material-symbols-outlined text-[18px] md:text-[20px]">
-                      {node.icon}
+                      {node.icon || 'circle'}
                     </span>
                   </div>
 
                   {/* Node Content Card */}
                   <div
                     onClick={() => {
-                      if (node.isAdaptiveRemediation) {
-                        onNavigate('adaptive');
-                      } else if (isInProgress || isMastered || isNeedsReview) {
+                      if (isInProgress || isMastered || isNeedsReview) {
                         onNavigate('classroom');
                       }
                     }}
                     className={`p-5 rounded-2xl border transition-all ${
-                      node.isAdaptiveRemediation
-                        ? 'bg-amber-50/80 border-amber-400 shadow-md cursor-pointer hover:bg-amber-100/70'
-                        : isInProgress
+                      isInProgress
                         ? 'bg-[#f2f3ff] border-[#4648d4] shadow-md cursor-pointer hover:border-[#6b38d4]'
                         : isMastered
                         ? 'bg-white border-[#c7c4d7]/50 hover:bg-[#faf8ff] cursor-pointer'
@@ -181,11 +328,7 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = ({
                         </span>
                         <h3
                           className={`font-bold text-base ${
-                            node.isAdaptiveRemediation
-                              ? 'text-amber-900'
-                              : isInProgress
-                              ? 'text-[#4648d4]'
-                              : 'text-[#131b2e]'
+                            isInProgress ? 'text-[#4648d4]' : 'text-[#131b2e]'
                           }`}
                         >
                           {node.title}
@@ -227,15 +370,11 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = ({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (node.isAdaptiveRemediation) {
-                              onNavigate('adaptive');
-                            } else {
-                              onNavigate('classroom');
-                            }
+                            onNavigate('classroom');
                           }}
                           className="px-4 py-1.5 bg-[#4648d4] hover:bg-[#6063ee] text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-1 cursor-pointer"
                         >
-                          {node.isAdaptiveRemediation ? 'Launch Simulation' : 'Resume Lesson'}
+                          Resume Lesson
                           <span className="material-symbols-outlined text-[16px]">play_arrow</span>
                         </button>
                       </div>

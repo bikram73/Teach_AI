@@ -102,22 +102,33 @@ export default function App() {
           <QuestionScreen
             onNavigate={setCurrentScreen}
             onCompleteAssessment={handleCompleteAssessment}
-            topicTitle={formState.topicText || "Basic Circuits & Ohm's Law"}
+            topicTitle={formState.topicText || (formState.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Topic') : "Basic Circuits & Ohm's Law")}
+            documentText={formState.uploadedFileContent}
+            userLevel={formState.currentLevel}
+            userLanguage={formState.language}
           />
         )}
-        {currentScreen === 'adaptive' && <AdaptiveScreen onNavigate={setCurrentScreen} />}
+        {currentScreen === 'adaptive' && (
+          <AdaptiveScreen
+            onNavigate={setCurrentScreen}
+            assessmentSummary={assessmentSummary}
+            topicTitle={formState.topicText || (formState.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Topic') : "Basic Circuits & Ohm's Law")}
+          />
+        )}
         {currentScreen === 'results' && (
           <ResultsScreen
             onNavigate={setCurrentScreen}
             assessmentSummary={assessmentSummary}
-            topicTitle={formState.topicText || "Basic Circuits & Ohm's Law"}
+            topicTitle={formState.topicText || (formState.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Topic') : "Basic Circuits & Ohm's Law")}
           />
         )}
         {currentScreen === 'path' && (
           <LearningPathScreen
             onNavigate={setCurrentScreen}
             assessmentSummary={assessmentSummary}
-            topicTitle={formState.topicText || "Basic Circuits & Ohm's Law"}
+            topicTitle={formState.topicText || (formState.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Topic') : "Basic Circuits & Ohm's Law")}
+            documentText={formState.uploadedFileContent}
+            userLevel={formState.currentLevel}
           />
         )}
       </main>

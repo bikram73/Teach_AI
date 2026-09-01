@@ -8,11 +8,29 @@ export type ScreenType =
   | 'results' 
   | 'path';
 
+export interface DocumentSection {
+  id: string;
+  title: string;
+  summary: string;
+  keyConcepts: string[];
+}
+
+export interface DocumentProfile {
+  title: string;
+  primaryTopic: string;
+  subjects: string[];
+  summary: string;
+  sections: DocumentSection[];
+  keyConcepts: string[];
+  difficultyEstimate: 'beginner' | 'intermediate' | 'advanced';
+}
+
 export interface PersonalizeFormState {
   sourceMaterial: 'upload' | 'topic';
   topicText?: string;
   uploadedFileName?: string;
   uploadedFileContent?: string;
+  documentProfile?: DocumentProfile;
   currentLevel: 'Beginner' | 'Intermediate' | 'Advanced';
   primaryGoal: 'Fundamentals' | 'Exam Prep' | 'Deep Dive' | 'Quick Review' | 'Interview Prep';
   timeAvailable: '5m' | '10m' | '20m' | '30m' | '60m' | '7 days';
@@ -20,13 +38,24 @@ export interface PersonalizeFormState {
   teachingStyle: 'simple' | 'conceptual' | 'socratic' | 'examples_first' | 'technical';
 }
 
+export type VisualMode =
+  | 'circuit'
+  | 'formula'
+  | 'timeline'
+  | 'flow'
+  | 'code'
+  | 'diagram'
+  | 'comparison'
+  | 'simulation'
+  | 'none';
+
 export interface LessonPlanSection {
   id: string;
   title: string;
   duration: string;
   summary: string;
   keyConcept: string;
-  visualType: 'circuit' | 'diagram' | 'equation' | 'code' | 'timeline' | 'simulation';
+  visualType: VisualMode;
   interactivePrompt: string;
 }
 
@@ -38,12 +67,13 @@ export interface LessonPlan {
   prerequisites: string[];
   sections: LessonPlanSection[];
   learningOutcomes: string[];
+  subject?: string;
 }
 
 export interface QuizQuestion {
   id?: string;
-  subject: string;
-  topic: string;
+  subject?: string;
+  topic?: string;
   concept?: string;
   question: string;
   options: {
@@ -77,6 +107,7 @@ export interface UserAssessmentSummary {
   recommendedRevision: string;
   recommendedNextTopic: string;
   topicTitle: string;
+  misconceptionDetails?: EvaluationResult;
 }
 
 export interface RagChunk {
@@ -106,16 +137,19 @@ export interface EvaluationResult {
   analogyType?: string;
   analogyTitle?: string;
   analogyDescription?: string;
+  remediationStrategy?: 'code_trace' | 'diagram' | 'timeline' | 'formula_breakdown' | 'water_pipe' | 'concept_analogy';
+  remediationData?: any;
   followUpQuestion?: QuizQuestion;
 }
 
 export interface PathNode {
   id: string;
   title: string;
-  status: 'mastered' | 'in_progress' | 'upcoming';
+  status: 'mastered' | 'in_progress' | 'needs_review' | 'upcoming';
   dateOrInfo?: string;
   icon: string;
   description?: string;
+  isAdaptiveRemediation?: boolean;
 }
 
 export interface ClassroomScene {
@@ -124,6 +158,17 @@ export interface ClassroomScene {
   concept: string;
   teacherScript: string;
   subtitles: string;
-  visualType: 'circuit' | 'equation' | 'analogy' | 'code' | 'diagram';
+  visualType: VisualMode;
   teacherPose: 'explaining' | 'listening' | 'demonstrating' | 'questioning';
+  codeSnippet?: string;
+  codeLanguage?: string;
+  diagramData?: {
+    nodes: Array<{ id: string; label: string; desc: string }>;
+    connections?: Array<{ from: string; to: string; label?: string }>;
+  };
+  timelineEvents?: Array<{ yearOrStep: string; title: string; desc: string }>;
+  formulaData?: {
+    formula: string;
+    variables: Array<{ name: string; symbol: string; min: number; max: number; current: number; unit: string }>;
+  };
 }
