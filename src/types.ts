@@ -160,15 +160,34 @@ export interface ClassroomScene {
   subtitles: string;
   visualType: VisualMode;
   teacherPose: 'explaining' | 'listening' | 'demonstrating' | 'questioning';
+  analogy?: string;
+  keyPoints?: string[];
+  stepBreakdown?: Array<{
+    stepNumber: number;
+    title: string;
+    description: string;
+    example?: string;
+  }>;
+  microQuiz?: {
+    question: string;
+    options: string[];
+    correctIndex: number;
+    explanation: string;
+  };
+  commonMistake?: {
+    misconception: string;
+    correction: string;
+  };
   codeSnippet?: string;
   codeLanguage?: string;
   diagramData?: {
-    nodes: Array<{ id: string; label: string; desc: string }>;
+    nodes: Array<{ id: string; label: string; desc: string; category?: string }>;
     connections?: Array<{ from: string; to: string; label?: string }>;
   };
-  timelineEvents?: Array<{ yearOrStep: string; title: string; desc: string }>;
+  timelineEvents?: Array<{ yearOrStep: string; title: string; desc: string; impact?: string }>;
   formulaData?: {
     formula: string;
-    variables: Array<{ name: string; symbol: string; min: number; max: number; current: number; unit: string }>;
+    description?: string;
+    variables: Array<{ name: string; symbol: string; min: number; max: number; current: number; unit: string; step?: number }>;
   };
 }

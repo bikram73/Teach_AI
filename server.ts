@@ -564,44 +564,73 @@ app.post("/api/lesson/scenes", async (req, res) => {
     const lang = language || "English";
     const userLevel = level || "Intermediate";
 
-    const prompt = `You are TeachAI's Interactive Classroom Scene Director.
-Generate 4-5 dynamic classroom scenes for the topic: "${currentTopic}".
+    const prompt = `You are TeachAI's Masterclass Lesson Director & Socratic Professor.
+Your goal is to teach "${currentTopic}" deeply, clearly, and engagingly to an ${userLevel} student in ${lang}.
+
 Student Language: "${lang}"
 Level: "${userLevel}"
-${documentText ? `Document Context: ${documentText.slice(0, 3000)}\n` : ""}
+${documentText ? `Document Context:\n${documentText.slice(0, 3000)}\n` : ""}
 
-Generate interactive visual data appropriate for "${currentTopic}":
-- If programming (Python/JS): provide a codeSnippet and codeLanguage.
-- If biology/architecture: provide diagramData with nodes.
-- If history: provide timelineEvents.
-- If formula/math: provide formulaData with variables.
-- If circuits: visualType "circuit".
+CRITICAL TEACHING QUALITY REQUIREMENTS:
+1. "teacherScript" MUST be a rich, thorough, warm masterclass lecture (4-6 complete, substantive sentences). Do NOT provide shallow 1-line summaries. The teacher should:
+   - Introduce the core intuition and why it matters in the real world.
+   - Explain the underlying mechanics and principles step-by-step.
+   - Reference the visual aid on the whiteboard.
+   - Guide the student on what to notice and how to think about it.
+2. "analogy": Include a vivid, memorable everyday analogy that demystifies abstract theory.
+3. "keyPoints": 3 clear, actionable takeaways for the student's study notes.
+4. "stepBreakdown": 3-4 sequential steps explaining how this concept executes or unfolds in practice.
+5. "microQuiz": An interactive 1-question check for this scene with 3-4 choices, correctIndex (0-based), and instructional explanation.
+6. "commonMistake": A frequent beginner trap/misconception and the correct way to think about it.
+7. "visualType": Select the most appropriate mode: "code" (programming), "diagram" (biology/systems/structures), "timeline" (history/events/chronology), "formula" (math/physics/economics), or "circuit" (electrical circuits).
 
-Output JSON format:
+Generate 4-5 progressive scenes:
+- Scene 1: Intuition, Motivation & Real-World Analogy
+- Scene 2: Core Mechanisms, Rules & Components
+- Scene 3: Step-by-Step Practical Demonstration / Worked Example
+- Scene 4: Critical Edge Cases, Common Mistakes & Mastery Synthesis
+
+Output JSON format strictly:
 {
   "scenes": [
     {
       "id": 1,
       "title": "string",
       "concept": "string",
-      "teacherScript": "string (warm, human-like narration in student's language, 3-4 sentences)",
-      "subtitles": "string (concise 1-2 sentence subtitle)",
-      "visualType": "code | diagram | timeline | formula | circuit | simulation | analogy",
+      "teacherScript": "string (4-6 comprehensive teaching sentences in ${lang})",
+      "subtitles": "string (1-2 sentence concise summary)",
+      "visualType": "code | diagram | timeline | formula | circuit | simulation",
       "teacherPose": "explaining | demonstrating | questioning",
-      "codeSnippet": "string (optional)",
+      "analogy": "string (vivid real-world analogy)",
+      "keyPoints": ["string (takeaway 1)", "string (takeaway 2)", "string (takeaway 3)"],
+      "stepBreakdown": [
+        {"stepNumber": 1, "title": "string", "description": "string", "example": "string"}
+      ],
+      "microQuiz": {
+        "question": "string",
+        "options": ["string", "string", "string"],
+        "correctIndex": 0,
+        "explanation": "string"
+      },
+      "commonMistake": {
+        "misconception": "string",
+        "correction": "string"
+      },
+      "codeSnippet": "string (if visualType is code)",
       "codeLanguage": "string (e.g. python, javascript)",
       "diagramData": {
         "nodes": [
-          {"id": "n1", "label": "string", "desc": "string"}
+          {"id": "n1", "label": "string", "desc": "string", "category": "string"}
         ]
       },
       "timelineEvents": [
-        {"yearOrStep": "string", "title": "string", "desc": "string"}
+        {"yearOrStep": "string", "title": "string", "desc": "string", "impact": "string"}
       ],
       "formulaData": {
         "formula": "string",
+        "description": "string",
         "variables": [
-          {"name": "string", "symbol": "string", "min": 1, "max": 100, "current": 10, "unit": "string"}
+          {"name": "string", "symbol": "string", "min": 1, "max": 100, "current": 10, "unit": "string", "step": 1}
         ]
       }
     }
@@ -620,7 +649,7 @@ Output JSON format:
       }
     }
 
-    // Dynamic Subject-Aware Fallback Scenes
+    // Dynamic Subject-Aware High-Quality Fallback Scenes
     const meta = inferSubjectMetadata(currentTopic);
     let fallbackScenes: any[] = [];
 
@@ -628,171 +657,444 @@ Output JSON format:
       fallbackScenes = [
         {
           id: 1,
-          title: `Introduction to ${currentTopic}`,
-          concept: "Syntax & Core Variables",
-          teacherScript: `Welcome! Today we are exploring ${currentTopic}. In programming, everything begins by creating clean abstractions, assigning variables, and structuring clean data flow. Let's inspect our first code block!`,
-          subtitles: `Welcome to ${currentTopic}. Let's learn fundamental syntax and data assignments.`,
+          title: `Foundations of ${currentTopic}: Variables & Memory`,
+          concept: "State Management & Identifier Allocation",
+          teacherScript: `Welcome to our masterclass on ${currentTopic}! In software engineering, computer memory is like a vast collection of labeled storage boxes. When we declare a variable, we reserve a designated memory address, attach a human-readable identifier, and store dynamic data inside it. Let's look at the interactive code editor on your whiteboard to see how variable assignments shape program execution.`,
+          subtitles: `Welcome to ${currentTopic}. Variables reserve memory addresses and bind identifiers to dynamic data values.`,
           visualType: "code",
           teacherPose: "explaining",
+          analogy: "Think of variables like labeled cubbies in an office: you slap a label on the outside and change what document sits inside at any time.",
+          keyPoints: [
+            "Variables allocate named space in computer RAM",
+            "Data types define what operations can safely be performed",
+            "Values can be re-bound or mutated depending on language semantics",
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Declaration & Allocation", description: "The runtime requests memory space for the identifier.", example: "user_score = 100" },
+            { stepNumber: 2, title: "Type Resolution", description: "The interpreter or compiler attaches data type constraints.", example: "type(user_score) -> int" },
+            { stepNumber: 3, title: "Dynamic Access & Modification", description: "Subsequent statements read or recompute the stored value.", example: "user_score += 25" },
+          ],
+          microQuiz: {
+            question: "What actually happens under the hood when you assign a new value to a variable?",
+            options: [
+              "The identifier is bound to the new value's memory location",
+              "The CPU reboots completely to reset its state",
+              "All other variables in the script are automatically deleted",
+            ],
+            correctIndex: 0,
+            explanation: "Variable assignment updates the reference pointer to point to the newly allocated or calculated value in memory.",
+          },
+          commonMistake: {
+            misconception: "Thinking variable names and values are permanently fused together.",
+            correction: "The variable name is merely a label pointing to an underlying memory address that can hold different values over time.",
+          },
           codeLanguage: "python",
-          codeSnippet: `# ${currentTopic} - Quickstart\nname = "TeachAI Learner"\nitems = [10, 20, 30, 40]\n\ndef calculate_total(values):\n    total = sum(values)\n    return f"Total is: {total}"\n\nprint(calculate_total(items))`,
+          codeSnippet: `# ${currentTopic} - Variables & Calculations\nlearner_name = "Alex"\nmodules_completed = 4\ntotal_modules = 6\n\nprogress_percent = (modules_completed / total_modules) * 100\nprint(f"Learner {learner_name}: {progress_percent:.1f}% Completed")`,
         },
         {
           id: 2,
-          title: "Functions, Parameters & Return Values",
-          concept: "Modular Logic & Execution",
-          teacherScript: `Functions allow us to encapsulate repeatable logic. When you pass arguments into a function, it processes those inputs and returns a predictable result without side effects.`,
-          subtitles: `Functions encapsulate logic: pass inputs in, receive computed outputs back.`,
+          title: "Functions, Scope & Clean Abstraction",
+          concept: "Modular Encapsulation & Pure Returns",
+          teacherScript: `Now let's examine functions—the building blocks of maintainable architecture. A function takes raw input arguments, encapsulates a discrete set of instructions, and produces a predictable return value. By isolating logic inside local variable scopes, we prevent unexpected side effects and make complex applications easy to test and debug.`,
+          subtitles: `Functions encapsulate logic into modular units, taking inputs and returning predictable outputs.`,
           visualType: "code",
           teacherPose: "demonstrating",
+          analogy: "A function is like a kitchen blender: you pour specific ingredients into the top, press blend, and receive a smooth smoothie out the spout.",
+          keyPoints: [
+            "Functions prevent code duplication (DRY principle)",
+            "Local scope variables exist only during function execution",
+            "Return statements pass computed values back to caller",
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Signature Definition", description: "Define function name and input parameters.", example: "def compute_tax(amount, rate=0.08):" },
+            { stepNumber: 2, title: "Execution in Local Scope", description: "Perform computations isolated from global variables.", example: "total = amount * (1 + rate)" },
+            { stepNumber: 3, title: "Return Value Delivery", description: "Yield output back to calling statement.", example: "return round(total, 2)" },
+          ],
+          microQuiz: {
+            question: "Why is it dangerous for a function to modify variables defined outside its local scope?",
+            options: [
+              "It creates unintended side-effects and makes code hard to predict or test",
+              "It causes the computer screen to invert its colors",
+              "It reduces the hard drive capacity permanently",
+            ],
+            correctIndex: 0,
+            explanation: "Mutating external state causes hidden coupling between unrelated parts of the codebase, leading to subtle bugs.",
+          },
+          commonMistake: {
+            misconception: "Confusing printing to console with returning a value.",
+            correction: "'print()' only displays text to the screen; 'return' gives the data back to your program so other code can use it.",
+          },
           codeLanguage: "python",
-          codeSnippet: `def apply_operation(x, y, op="add"):\n    if op == "add":\n        return x + y\n    elif op == "multiply":\n        return x * y\n    return 0\n\nresult = apply_operation(15, 3, "multiply")\nprint("Computed Result:", result)`,
+          codeSnippet: `def calculate_grade(score, extra_credit=0):\n    final_score = min(100, score + extra_credit)\n    if final_score >= 90:\n        return "A (Mastery)"\n    elif final_score >= 80:\n        return "B (Proficient)"\n    return "Needs Practice"\n\nprint("Result 1:", calculate_grade(88, 5))\nprint("Result 2:", calculate_grade(72, 3))`,
         },
         {
           id: 3,
-          title: "Control Flow, Conditionals & Iteration",
-          concept: "Dynamic Decision Making",
-          teacherScript: `Programs make intelligent decisions using conditionals and loops. Notice how the loop traverses each item sequentially, checking criteria before updating program state.`,
-          subtitles: `Loops and conditions allow dynamic traversal and selective execution.`,
+          title: "Iteration, Control Flow & Data Processing",
+          concept: "Algorithmic Decision Making & Loops",
+          teacherScript: `Every intelligent system relies on conditionals and loops to make decisions at scale. With control flow, our program evaluates Boolean conditions to choose between execution branches, while iteration allows us to process thousands of data records sequentially in milliseconds. Notice how the loop on our whiteboard filters and transforms each record.`,
+          subtitles: `Conditionals branch logic, while loops iterate over collections to filter and transform data.`,
           visualType: "code",
           teacherPose: "explaining",
+          analogy: "A loop with conditionals is like a postal sorting machine: it picks up each letter one by one, checks the zip code, and drops it into the correct bin.",
+          keyPoints: [
+            "If-else blocks branch execution based on truth expressions",
+            "For-loops cleanly traverse sequences without manual index tracking",
+            "List comprehensions provide elegant syntax for transformations",
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Sequence Initialization", description: "Provide an iterable collection of items.", example: "records = [15, 42, 88, 19, 93]" },
+            { stepNumber: 2, title: "Condition Evaluation", description: "Test criteria for each element.", example: "if record > 50:" },
+            { stepNumber: 3, title: "Collection of Yielded Results", description: "Append or transform passing items into final output.", example: "filtered = [x for x in records if x > 50]" },
+          ],
+          microQuiz: {
+            question: "When should you prefer a 'for' loop over a 'while' loop?",
+            options: [
+              "When you know the collection or bounded range of items you want to traverse",
+              "When you want your code to run infinitely without stopping",
+              "When you are not using any variables in your script",
+            ],
+            correctIndex: 0,
+            explanation: "For loops are designed for bounded iteration over iterables, eliminating off-by-one errors common with manual while counter loops.",
+          },
+          commonMistake: {
+            misconception: "Modifying a list while actively looping over it with a for loop.",
+            correction: "Mutating a collection during iteration causes skipped elements; always create a new filtered list or iterate over a copy.",
+          },
           codeLanguage: "python",
-          codeSnippet: `scores = [78, 92, 85, 64, 99]\nmastered = []\n\nfor s in scores:\n    if s >= 80:\n        mastered.append(s)\n\nprint(f"Mastered modules ({len(mastered)}):", mastered)`,
+          codeSnippet: `raw_temperatures = [22.5, 31.0, 18.2, 35.4, 28.0, 15.6]\nhot_days = []\n\nfor temp in raw_temperatures:\n    if temp > 30.0:\n        hot_days.append(temp)\n\nprint("Recorded Hot Days (>30°C):", hot_days)\nprint(f"Percentage hot: {(len(hot_days) / len(raw_temperatures)) * 100:.1f}%")`,
         },
         {
           id: 4,
-          title: "Interactive Code Sandbox & Execution",
-          concept: "Live Code Testing",
-          teacherScript: `Now look at our interactive code sandbox on the whiteboard. Try editing the values and click Run to see the interpreter output update instantly in real time!`,
-          subtitles: `Use the interactive code sandbox to modify variables and run your script live.`,
+          title: "Live Execution Sandbox & Code Optimization",
+          concept: "Hands-On Problem Solving & Debugging",
+          teacherScript: `Now it's your turn to get hands-on! Look at our interactive code sandbox on the whiteboard. Try modifying the inputs, add new conditional branches, and hit 'Run Code'. Observing how your program compiles and executes in real time is the single fastest way to solidify your programming intuition.`,
+          subtitles: `Use the interactive sandbox to modify values, test edge cases, and run your code live.`,
           visualType: "code",
           teacherPose: "demonstrating",
+          analogy: "A code sandbox is like a flight simulator for pilots: a safe place to test limits, make mistakes, and learn without breaking anything.",
+          keyPoints: [
+            "Test edge cases like empty collections, zeroes, and negative inputs",
+            "Read stack traces carefully—they point directly to the line of error",
+            "Refactor code to be readable before trying to make it clever",
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Hypothesize", description: "Predict what the output should be before running.", example: "Predict: sum = 150" },
+            { stepNumber: 2, title: "Execute & Observe", description: "Click Run Code to evaluate script in sandbox.", example: "Terminal: Output printed" },
+            { stepNumber: 3, title: "Refactor & Verify", description: "Tweak variables and confirm expected behavior holds.", example: "Edge case tested" },
+          ],
+          microQuiz: {
+            question: "What is the most effective first step when debugging an unexpected runtime error?",
+            options: [
+              "Read the error message and line number in the console traceback",
+              "Delete the entire file and start over from scratch",
+              "Randomly rename all variables in the script",
+            ],
+            correctIndex: 0,
+            explanation: "The traceback pinpointing file line and exception type gives you the exact diagnostic clues to resolve bugs quickly.",
+          },
+          commonMistake: {
+            misconception: "Assuming buggy code is random or unpredictable.",
+            correction: "Computers are 100% deterministic; unexpected outputs always stem from logical edge cases in our instructions.",
+          },
           codeLanguage: "python",
-          codeSnippet: `# Interactive Sandbox for ${currentTopic}\nuser_input = 42\nmultiplier = 3\n\noutput = user_input * multiplier\nprint("Sandbox Output:", output)`,
-        },
-      ];
-    } else if (meta.visualType === "timeline") {
-      fallbackScenes = [
-        {
-          id: 1,
-          title: `Historical Context & Origins: ${currentTopic}`,
-          concept: "Historical Background & Catalysts",
-          teacherScript: `Welcome to our historical exploration of ${currentTopic}. To understand the outcomes, we must first examine the precursor conditions, political landscape, and key catalysts that set events into motion.`,
-          subtitles: `Examining the historical catalysts and context of ${currentTopic}.`,
-          visualType: "timeline",
-          teacherPose: "explaining",
-          timelineEvents: [
-            { yearOrStep: "Phase 1", title: "Precursor Conditions", desc: "Underlying economic, social, and geopolitical tensions build up." },
-            { yearOrStep: "Phase 2", title: "Trigger Event", desc: "A decisive spark catalyzes widespread systemic response and mobilization." },
-            { yearOrStep: "Phase 3", title: "Active Conflict & Policy", desc: "Major battles, treaties, or legislation transform the status quo." },
-            { yearOrStep: "Phase 4", title: "Post-Event Resolution", desc: "Long-term geopolitical realignments and institutional reforms take root." },
-          ],
-        },
-        {
-          id: 2,
-          title: "Key Turning Points & Decisive Moments",
-          concept: "Critical Chronology",
-          teacherScript: `History is shaped by decisive turning points where momentum shifts permanently. Look at the milestone timeline on our whiteboard to see how each phase directly influenced subsequent developments.`,
-          subtitles: `Analyzing the pivotal turning points that defined the trajectory of ${currentTopic}.`,
-          visualType: "timeline",
-          teacherPose: "demonstrating",
-          timelineEvents: [
-            { yearOrStep: "Milestone A", title: "Initial Campaign", desc: "Rapid early advances and shifting alliances." },
-            { yearOrStep: "Milestone B", title: "The Turning Point", desc: "A strategic shift that reverses momentum permanently." },
-            { yearOrStep: "Milestone C", title: "Resolution & Impact", desc: "Enduring legal, cultural, and political legacy." },
-          ],
-        },
-        {
-          id: 3,
-          title: "Cause, Effect & Lasting Legacy",
-          concept: "Historical Synthesis",
-          teacherScript: `Understanding history isn't just about memorizing dates; it's about discerning cause-and-effect relationships that explain why our modern institutions and borders exist today.`,
-          subtitles: `Synthesizing historical cause and effect to understand modern consequences.`,
-          visualType: "timeline",
-          teacherPose: "explaining",
+          codeSnippet: `# Interactive Sandbox for ${currentTopic}\nuser_items = [12, 45, 67, 89, 23]\ntarget_threshold = 40\n\npassing = [x for x in user_items if x >= target_threshold]\nprint(f"Items >= {target_threshold}:", passing)\nprint("Average of passing:", sum(passing) / len(passing))`,
         },
       ];
     } else if (meta.visualType === "diagram") {
       fallbackScenes = [
         {
           id: 1,
-          title: `Structural Overview: ${currentTopic}`,
-          concept: "Anatomical & Component Architecture",
-          teacherScript: `Welcome to our visual exploration of ${currentTopic}. Complex biological and mechanical systems function through specialized, interconnected components working in harmony. Let's inspect the primary architecture!`,
-          subtitles: `Exploring the anatomical structure and core components of ${currentTopic}.`,
+          title: `Architecture & Core Organization of ${currentTopic}`,
+          concept: "Structural Hierarchy & Modular Components",
+          teacherScript: `Welcome to our visual exploration of ${currentTopic}! Whether we look at biological cells, physiological organs, or complex engineered systems, high performance is achieved through specialized, interconnected components. Each module carries out a dedicated function while continuously exchanging signals with adjacent subsystems. Let's inspect the component map on our interactive whiteboard.`,
+          subtitles: `Welcome to ${currentTopic}. Systems maintain stability through specialized modules coordinated in harmony.`,
           visualType: "diagram",
           teacherPose: "explaining",
+          analogy: "A complex biological or structural system is like a busy international airport: the control tower, fuel trucks, baggage handlers, and runways must coordinate seamlessly for planes to take off.",
+          keyPoints: [
+            "Specialized modules divide complex metabolic or mechanical work",
+            "Semi-permeable boundaries protect internal environments",
+            "Communication pathways coordinate real-time responses to external stimuli",
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Compartmentalization", description: "Separates conflicting biochemical reactions into dedicated zones.", example: "Organelles / Modules" },
+            { stepNumber: 2, title: "Selective Transport", description: "Regulates what passes through boundaries via transport channels.", example: "Membrane Influx" },
+            { stepNumber: 3, title: "System Coordination", description: "Signaling cascades synchronize multi-component actions.", example: "Feedback Hormones" },
+          ],
+          microQuiz: {
+            question: "What is the primary advantage of cellular and structural compartmentalization?",
+            options: [
+              "It allows incompatible chemical reactions to occur simultaneously without interfering",
+              "It makes the cell weigh ten times more than normal",
+              "It permanently stops all molecular motion",
+            ],
+            correctIndex: 0,
+            explanation: "Compartmentalization isolates chemical micro-environments (like acidic lysosomal enzymes) so they don't destroy surrounding cytoplasm.",
+          },
+          commonMistake: {
+            misconception: "Viewing organelles or components as isolated static parts.",
+            correction: "Components are in continuous dynamic flux, constantly exchanging substrates, signaling proteins, and vesicles.",
+          },
           diagramData: {
             nodes: [
-              { id: "core", label: "Primary Core", desc: "Central regulatory center coordinating system activity." },
-              { id: "membrane", label: "Boundary Layer", desc: "Selective barrier regulating inputs and outputs." },
-              { id: "energy", label: "Metabolic Engine", desc: "Generates cellular energy (ATP) to drive vital functions." },
-              { id: "transport", label: "Transport Network", desc: "Facilitates rapid distribution of essential molecules." },
+              { id: "nucleus", label: "Command Center (Nucleus)", desc: "Houses genetic blueprints (DNA) and directs synthesis.", category: "Control" },
+              { id: "mitochondria", label: "Energy Engine (Mitochondria)", desc: "Synthesizes ATP through oxidative phosphorylation.", category: "Metabolism" },
+              { id: "membrane", label: "Boundary Bilayer (Membrane)", desc: "Selectively regulates influx and efflux of ions.", category: "Transport" },
+              { id: "ribosome", label: "Protein Factories (Ribosomes)", desc: "Translates mRNA sequences into functional proteins.", category: "Synthesis" },
             ],
           },
         },
         {
           id: 2,
-          title: "Dynamic Process & System Interactions",
-          concept: "Functional Mechanisms",
-          teacherScript: `Notice how each component passes vital signals and materials to the next. If any single stage is inhibited, the entire metabolic or structural pathway adapts dynamically.`,
-          subtitles: `Observing how individual components coordinate during active processes.`,
+          title: "Metabolic Cascades, Energy & Flux",
+          concept: "Biochemical Energy Transfer & Pathways",
+          teacherScript: `Notice how energy flows through the system. Raw substrates enter through boundary transport proteins, undergo multi-stage catalytic breakdown, and generate usable energy currencies like ATP. If any single metabolic checkpoint is blocked or inhibited, the entire system activates feedback loops to compensate and preserve dynamic equilibrium.`,
+          subtitles: `Metabolic pathways convert raw fuel into usable energy through regulated catalytic stages.`,
           visualType: "diagram",
           teacherPose: "demonstrating",
+          analogy: "Metabolic pathways are like an automobile assembly line: each station adds or modifies one component before passing the chassis to the next station.",
+          keyPoints: [
+            "Enzymes lower activation energy to accelerate vital reactions",
+            "ATP acts as the universal chemical battery across all living systems",
+            "Feedback inhibition prevents wasteful overproduction of metabolites",
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Substrate Ingestion", description: "Nutrients traverse boundary channels into cytoplasm.", example: "Glucose uptake" },
+            { stepNumber: 2, title: "Enzymatic Cleavage", description: "Sequential enzyme reactions extract high-energy electrons.", example: "Glycolysis -> Krebs" },
+            { stepNumber: 3, title: "Proton Gradient & ATP Synthesis", description: "Membrane potentials drive rotary ATP synthase motor.", example: "36-38 ATP yield" },
+          ],
+          microQuiz: {
+            question: "What happens when an end-product builds up to high concentrations in a metabolic feedback loop?",
+            options: [
+              "It allosterically inhibits the first committed enzyme to slow production",
+              "It causes the cell to spontaneously divide into four",
+              "It accelerates synthesis indefinitely until the cell bursts",
+            ],
+            correctIndex: 0,
+            explanation: "Negative feedback inhibition shuts down upstream catalytic enzymes when sufficient product is already present, conserving energy.",
+          },
+          commonMistake: {
+            misconception: "Believing energy is 'created' by mitochondria.",
+            correction: "Energy cannot be created; mitochondria merely transform the chemical bond energy of glucose into phosphate bond energy in ATP.",
+          },
           diagramData: {
             nodes: [
-              { id: "input", label: "Input Substrates", desc: "Raw nutrients or signals entering the system." },
-              { id: "catalyst", label: "Catalytic Processing", desc: "Enzymatic conversion accelerating the reaction." },
-              { id: "output", label: "Functional Yield", desc: "Final synthesized product delivered to target tissue." },
+              { id: "glucose", label: "Fuel Substrates", desc: "High-potential chemical bond energy ready for extraction.", category: "Input" },
+              { id: "catalyst", label: "Enzymatic Catalysis", desc: "Lowers activation energy barrier for rapid transformation.", category: "Process" },
+              { id: "atp", label: "ATP Energy Currency", desc: "Powers muscular contraction, active transport, and biosynthesis.", category: "Yield" },
             ],
           },
         },
         {
           id: 3,
-          title: "Interactive System Inspector",
-          concept: "Component Diagnostics",
-          teacherScript: `Click on any organelle or module on the interactive whiteboard to inspect its physiological function, molecular role, and clinical relevance.`,
-          subtitles: `Click any component on the whiteboard to inspect detailed properties.`,
+          title: "Homeostatic Equilibrium & Clinical Diagnostics",
+          concept: "Regulatory Stability & Adaptation",
+          teacherScript: `The hallmark of any robust living system is homeostasis—the ability to maintain stable internal conditions despite wild fluctuations in the surrounding environment. When internal pH, temperature, or ion concentrations shift away from baseline set-points, receptor sensors trigger immediate corrective responses. Click on any organelle on your whiteboard to inspect its diagnostic profile!`,
+          subtitles: `Homeostasis uses negative feedback loops to maintain optimal physiological set points.`,
           visualType: "diagram",
           teacherPose: "explaining",
+          analogy: "Homeostasis works exactly like your home thermostat: when the room gets too cold, the furnace kicks on until the exact target temperature is restored.",
+          keyPoints: [
+            "Negative feedback maintains stability around a specific set point",
+            "Positive feedback amplifies a process to a rapid conclusion (e.g. blood clotting)",
+            "Disruptions in homeostatic regulation manifest as chronic pathologies",
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Sensor Detection", description: "Receptors measure deviation from homeostatic set-point.", example: "Osmoreceptor firing" },
+            { stepNumber: 2, title: "Integration Center", description: "Neural or chemical control hub calculates corrective response.", example: "Hypothalamic signal" },
+            { stepNumber: 3, title: "Effector Response", description: "Target organs enact physiological change to restore balance.", example: "Kidney water reabsorption" },
+          ],
+          microQuiz: {
+            question: "Which of the following is a classic example of a homeostatic negative feedback loop in the human body?",
+            options: [
+              "Insulin secretion lowering blood glucose levels after a carbohydrate meal",
+              "Sound waves bouncing off a canyon wall",
+              "A car accelerating continuously downhill without brakes",
+            ],
+            correctIndex: 0,
+            explanation: "Insulin prompts cells to absorb glucose, bringing elevated blood sugar back down to the healthy homeostatic baseline.",
+          },
+          commonMistake: {
+            misconception: "Thinking homeostasis means internal conditions are completely frozen and unchanging.",
+            correction: "Homeostasis is dynamic equilibrium—parameters fluctuate gently within a safe, narrow physiological window.",
+          },
+          diagramData: {
+            nodes: [
+              { id: "sensor", label: "Receptor Sensor", desc: "Monitors internal environment for deviations.", category: "Diagnostics" },
+              { id: "control", label: "Control Center", desc: "Compares input to set point and dispatches signals.", category: "Diagnostics" },
+              { id: "effector", label: "Effector Organ", desc: "Executes physiological adjustments to restore balance.", category: "Diagnostics" },
+            ],
+          },
         },
       ];
-    } else {
-      // Circuit / Physics / General Fallback
+    } else if (meta.visualType === "timeline") {
       fallbackScenes = [
         {
           id: 1,
-          title: `Introduction: Core Principles of ${currentTopic}`,
-          concept: "Fundamental Driving Forces",
-          teacherScript: `Welcome! Today we are exploring ${currentTopic}. Before diving into formulas, let's understand the core physical intuition: how underlying potential forces drive steady flow through opposing resistance.`,
-          subtitles: `Welcome! Let's explore the physical intuition and core forces behind ${currentTopic}.`,
-          visualType: meta.visualType === "circuit" ? "circuit" : "formula",
+          title: `Historical Precursors & Catalysts: ${currentTopic}`,
+          concept: "Structural Stresses & The Spark of Change",
+          teacherScript: `Welcome to our historical deep-dive into ${currentTopic}. Great historical transformations never occur in a vacuum; they represent the culmination of accumulating economic pressures, ideological shifts, and institutional fractures. When an immediate catalyst ignites these pre-existing tensions, the resulting chain reaction reshapes nations. Look at Phase 1 on our timeline to trace the initial precursor conditions.`,
+          subtitles: `Welcome to ${currentTopic}. Historical revolutions and milestones ignite from deep structural pressures.`,
+          visualType: "timeline",
           teacherPose: "explaining",
+          analogy: "A historic revolution is like an avalanche: years of heavy snow pack accumulate silently until a single small tremor unleashes an unstoppable cascade.",
+          keyPoints: [
+            "Underlying structural grievances create the dry kindling for change",
+            "Immediate catalytic events provide the spark that mobilizes the public",
+            "Ideological frameworks give revolutionary movements coherence and direction",
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Accumulation of Stresses", description: "Economic hardship, social inequality, and fiscal crises deepen.", example: "Fiscal debt & food shortages" },
+            { stepNumber: 2, title: "The Spark Event", description: "A decisive political, military, or social event triggers mobilization.", example: "Estates-General / Declaration" },
+            { stepNumber: 3, title: "Mass Mobilization", description: "Institutions of the old regime lose legitimacy and authority.", example: "Popular uprisings" },
+          ],
+          microQuiz: {
+            question: "Why is it insufficient to attribute major historical conflicts solely to a single spark event?",
+            options: [
+              "Because without deep-seated structural tensions, a spark cannot sustain a widespread revolution",
+              "Because history only moves backwards",
+              "Because all historical records are fictional",
+            ],
+            correctIndex: 0,
+            explanation: "Immediate triggers only ignite mass movements if there is already substantial economic, social, or political friction built up.",
+          },
+          commonMistake: {
+            misconception: "Assuming historical outcomes were completely inevitable from the start.",
+            correction: "History is highly contingent; individual decisions, weather conditions, and tactical choices constantly divert the trajectory.",
+          },
+          timelineEvents: [
+            { yearOrStep: "Phase 1", title: "Accumulating Stresses", desc: "Deep socioeconomic disparities, fiscal debt, and philosophical critiques build widespread unrest.", impact: "Weakens institutional legitimacy" },
+            { yearOrStep: "Phase 2", title: "The Catalytic Trigger", desc: "A decisive political refusal or symbolic clash forces public mobilization and defiance.", impact: "Breaks the status quo barrier" },
+            { yearOrStep: "Phase 3", title: "Institutional Upheaval", desc: "Old governing structures dissolve as revolutionary declarations codify new legal doctrines.", impact: "Radical transfer of power" },
+            { yearOrStep: "Phase 4", title: "Lasting Global Legacy", desc: "New constitutional models, border realignments, and civil liberties shape the modern era.", impact: "Enduring modern resonance" },
+          ],
         },
         {
           id: 2,
-          title: "Governing Laws & Dynamic Proportionality",
-          concept: "Mathematical Equilibrium",
-          teacherScript: `When you increase the driving force, throughput increases. Conversely, increasing system resistance throttles the flow proportionally. This inverse relationship is fundamental.`,
-          subtitles: `Flow increases with driving force and decreases proportionally with resistance.`,
-          visualType: "formula",
+          title: "Strategic Turning Points & Geopolitical Shifts",
+          concept: "Pivotal Moments That Reversed Momentum",
+          teacherScript: `Notice how historical momentum hinges on decisive turning points. Whether it was a pivotal battle, a courageous manifesto, or a diplomatic realignment, these milestones irreversibly altered the strategic balance of power. Click on each milestone card on your whiteboard to analyze the cause-and-effect relationship that followed.`,
+          subtitles: `Analyzing the pivotal turning points that permanently redirected historical momentum in ${currentTopic}.`,
+          visualType: "timeline",
           teacherPose: "demonstrating",
+          analogy: "A historical turning point is like a watershed ridge on a mountain: rainfall on one side flows east to the Atlantic, while rainfall inches away flows west to the Pacific.",
+          keyPoints: [
+            "Turning points eliminate alternative historical pathways permanently",
+            "Coalition alliances frequently determine the longevity of new regimes",
+            "Military victories must be solidified through sustainable institutional treaties",
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Tactical Crisis", description: "Opposing forces reach maximum confrontation.", example: "Battle / Decisive vote" },
+            { stepNumber: 2, title: "Momentum Reversal", description: "One faction secures definitive strategic initiative.", example: "Treaty / Coalition shift" },
+            { stepNumber: 3, title: "Consolidation of Power", description: "New legal codes and governance norms are established.", example: "Constitution drafted" },
+          ],
+          microQuiz: {
+            question: "What defines a historical milestone as a true 'turning point'?",
+            options: [
+              "It fundamentally and irreversibly redirects the strategic momentum and balance of power",
+              "It is the date when the most flags were printed",
+              "It has zero impact on subsequent generations",
+            ],
+            correctIndex: 0,
+            explanation: "Turning points mark irreversible transitions after which returning to the prior political or social status quo is impossible.",
+          },
+          commonMistake: {
+            misconception: "Focusing solely on dates rather than underlying causes and long-term effects.",
+            correction: "True historical comprehension connects *why* decisions were made to *how* they constrain our present institutions.",
+          },
+          timelineEvents: [
+            { yearOrStep: "Milestone A", title: "Early Mobilization", desc: "Rapid grassroots organization outpaces traditional royal or imperial garrisons.", impact: "Secures popular strongholds" },
+            { yearOrStep: "Milestone B", title: "The Decisive Pivot", desc: "A major victory or diplomatic treaty permanently isolates reactionary opposition.", impact: "Reverses strategic momentum" },
+            { yearOrStep: "Milestone C", title: "Constitutional Codification", desc: "Enactment of landmark legal codes establishing egalitarian civil liberties.", impact: "Enduring legal precedent" },
+          ],
+        },
+      ];
+    } else {
+      // Circuit / Physics / Formula Fallback
+      fallbackScenes = [
+        {
+          id: 1,
+          title: `Fundamental Driving Forces: ${currentTopic}`,
+          concept: "Potential Differences & Resistive Forces",
+          teacherScript: `Welcome to our physics and engineering masterclass on ${currentTopic}! In any physical or electrical network, energy flows because of a potential gradient—a difference in pressure or electrical potential between two points. This driving force pushes charge carriers or fluid through the medium, while internal resistance opposes that flow. Let's look at our interactive workbench on the whiteboard to observe this relationship firsthand!`,
+          subtitles: `Welcome to ${currentTopic}. Potential difference drives throughput, while resistance opposes and throttles flow.`,
+          visualType: meta.visualType === "circuit" ? "circuit" : "formula",
+          teacherPose: "explaining",
+          analogy: "Electric current is like water flowing down a mountain pipe: Voltage is the height of the water tower, Current is the volume of water rushing through, and Resistance is the narrowness of the pipe.",
+          keyPoints: [
+            "Potential difference (Voltage) provides the push to move charges",
+            "Current (Amperes) measures the rate of charge flow per second",
+            "Resistance (Ohms) dissipates electrical energy into heat",
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Establish Potential", description: "Chemical reactions in battery create charge imbalance.", example: "12 Volts potential" },
+            { stepNumber: 2, title: "Close Circuit Loop", description: "Conductors provide continuous path for electron drift.", example: "Switch: ON" },
+            { stepNumber: 3, title: "Work Done on Load", description: "Charges surrender kinetic energy across resistor/bulb.", example: "Heat & Light emitted" },
+          ],
+          microQuiz: {
+            question: "If you double the driving voltage while keeping resistance fixed, what happens to the current?",
+            options: [
+              "The current doubles proportionally",
+              "The current drops to zero",
+              "The current remains completely unchanged",
+            ],
+            correctIndex: 0,
+            explanation: "According to Ohm's Law (I = V / R), current is directly proportional to voltage when resistance is held constant.",
+          },
+          commonMistake: {
+            misconception: "Thinking electrons travel through wires at the speed of light.",
+            correction: "Individual electrons drift slowly (millimeters per second), but the electromagnetic *signal wave* propagates near the speed of light.",
+          },
           formulaData: {
             formula: "I = V / R",
+            description: "Current equals Voltage divided by Resistance",
             variables: [
-              { name: "Voltage (V)", symbol: "V", min: 1, max: 24, current: 12, unit: "V" },
-              { name: "Resistance (R)", symbol: "R", min: 1, max: 20, current: 6, unit: "Ω" },
+              { name: "Voltage (Driving Force)", symbol: "V", min: 1, max: 48, current: 12, unit: "V", step: 1 },
+              { name: "Resistance (Opposition)", symbol: "R", min: 1, max: 30, current: 6, unit: "Ω", step: 1 },
             ],
           },
         },
         {
-          id: 3,
-          title: "Interactive Workbench & Parameter Simulation",
-          concept: "Live Parameter Control",
-          teacherScript: `Now look at our interactive whiteboard. Try adjusting the sliders and switches to observe how the real-time simulation reacts according to the governing principles!`,
-          subtitles: `Adjust parameters on the interactive whiteboard to observe dynamic system reactions.`,
-          visualType: meta.visualType === "circuit" ? "circuit" : "simulation",
+          id: 2,
+          title: "Governing Laws, Energy & Power Dissipation",
+          concept: "Equilibrium & Conservation of Energy",
+          teacherScript: `Now let's examine power dissipation: Power equals Voltage times Current ($P = V \times I$). Every joule of potential energy supplied by the source must be accounted for across the circuit components. Notice on our whiteboard how increasing voltage not only increases current, but causes power dissipation to skyrocket quadratically ($P = I^2 \times R$), illuminating our lightbulb far brighter!`,
+          subtitles: `Electrical power P = V × I measures the rate at which energy is converted into work and heat.`,
+          visualType: meta.visualType === "circuit" ? "circuit" : "formula",
           teacherPose: "demonstrating",
+          analogy: "Power is like a water wheel grinding grain: more water volume (Current) dropped from a greater height (Voltage) spins the heavy millstone much faster.",
+          keyPoints: [
+            "Power (Watts) is the rate of energy conversion (1 Watt = 1 Joule/sec)",
+            "Power scales with the square of current: doubling current quadruples heat!",
+            "Energy is strictly conserved across all closed loops (Kirchhoff's Laws)",
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Calculate Current", description: "Use I = V / R to find throughput.", example: "12V / 6Ω = 2A" },
+            { stepNumber: 2, title: "Calculate Power", description: "Use P = V × I to compute wattage.", example: "12V × 2A = 24 Watts" },
+            { stepNumber: 3, title: "Verify Equilibrium", description: "Ensure thermal dissipation matches input source energy.", example: "24W in = 24W dissipated" },
+          ],
+          microQuiz: {
+            question: "Why do long-distance power lines transmit electricity at ultra-high voltages (hundreds of kilovolts)?",
+            options: [
+              "To minimize current, thereby drastically reducing I²R heat losses along miles of wire",
+              "To make the power lines glow in the dark for airplanes",
+              "Because power lines cannot carry low voltage electricity",
+            ],
+            correctIndex: 0,
+            explanation: "By stepping up voltage, current drops proportionally, which dramatically shrinks power loss (P = I²R) over long geographic distances.",
+          },
+          commonMistake: {
+            misconception: "Believing high voltage alone is always lethal regardless of current.",
+            correction: "It is the electric *current* (amperes) passing through vital organs that causes physiological harm, though high voltage provides the push to overcome skin resistance.",
+          },
+          formulaData: {
+            formula: "P = V × I = I² × R",
+            description: "Electrical power dissipated in Watts",
+            variables: [
+              { name: "Voltage (V)", symbol: "V", min: 1, max: 48, current: 12, unit: "V", step: 1 },
+              { name: "Current (I)", symbol: "I", min: 0.1, max: 10, current: 2, unit: "A", step: 0.1 },
+            ],
+          },
         },
       ];
     }
