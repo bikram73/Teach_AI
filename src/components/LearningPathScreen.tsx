@@ -8,6 +8,7 @@ interface LearningPathScreenProps {
   topicTitle?: string;
   documentText?: string;
   userLevel?: string;
+  userLanguage?: string;
 }
 
 export const LearningPathScreen: React.FC<LearningPathScreenProps> = ({
@@ -16,6 +17,7 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = ({
   topicTitle = "Foundational Curriculum",
   documentText,
   userLevel = "Intermediate",
+  userLanguage = "English",
 }) => {
   const currentTopic = assessmentSummary?.topicTitle || topicTitle;
   const score = assessmentSummary?.scorePercent ?? 80;
@@ -200,6 +202,7 @@ export const LearningPathScreen: React.FC<LearningPathScreenProps> = ({
           body: JSON.stringify({
             topic: currentTopic,
             level: userLevel,
+            language: userLanguage,
             documentText,
           }),
         });

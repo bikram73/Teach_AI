@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ASSETS } from '../data/mockData';
 import { ClassroomScene, PersonalizeFormState, ScreenType, VisualMode } from '../types';
+import { getLanguageBCP47, getBestVoice, isPureEnglish } from '../utils/language';
 
 interface ClassroomScreenProps {
   onNavigate: (screen: ScreenType) => void;
@@ -456,11 +457,10 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
     const rateNum = parseFloat(speed.replace('x', '')) || 1.0;
     utterance.rate = rateNum;
     utterance.pitch = 1.05;
+    utterance.lang = getLanguageBCP47(formState?.language);
 
     const voices = window.speechSynthesis.getVoices();
-    const preferredVoice = voices.find(
-      (v) => v.name.includes('Google') || v.name.includes('Natural') || v.name.includes('Samantha') || v.name.includes('Female')
-    );
+    const preferredVoice = getBestVoice(voices, formState?.language);
     if (preferredVoice) utterance.voice = preferredVoice;
 
     window.speechSynthesis.speak(utterance);
@@ -468,7 +468,7 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
     return () => {
       window.speechSynthesis.cancel();
     };
-  }, [currentSceneIndex, isPlaying, isMuted, speed, scenes]);
+  }, [currentSceneIndex, isPlaying, isMuted, speed, scenes, formState?.language]);
 
   const toggleSpeed = () => {
     const speeds: Array<'0.8x' | '1.0x' | '1.25x' | '1.5x'> = ['0.8x', '1.0x', '1.25x', '1.5x'];
@@ -554,7 +554,7 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.lang = formState?.language?.includes('Hindi') ? 'hi-IN' : 'en-US';
+      recognition.lang = getLanguageBCP47(formState?.language);
       recognition.continuous = false;
       recognition.interimResults = false;
 
@@ -610,6 +610,10 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
         if ('speechSynthesis' in window && !isMuted) {
           const u = new SpeechSynthesisUtterance(data.response.answer);
           u.rate = 1.0;
+          u.lang = getLanguageBCP47(formState?.language);
+          const voices = window.speechSynthesis.getVoices();
+          const preferredVoice = getBestVoice(voices, formState?.language);
+          if (preferredVoice) u.voice = preferredVoice;
           window.speechSynthesis.speak(u);
         }
       }

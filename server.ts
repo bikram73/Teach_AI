@@ -207,6 +207,22 @@ function inferSubjectMetadata(topicOrText: string): { subject: string; visualTyp
   return { subject: "General Academic & STEM", visualType: "diagram" };
 }
 
+// Helper: build strict language enforcement instructions
+function getStrictLanguageRule(lang?: string): string {
+  const clean = (lang || "").trim();
+  const lower = clean.toLowerCase();
+  if (!clean || lower === "english" || lower === "en" || lower === "en-us" || lower === "en-gb") {
+    return `CRITICAL LANGUAGE DIRECTIVE (STRICT ENGLISH ONLY):
+The student has selected TEACH IN ENGLISH.
+- You MUST write and teach strictly, exclusively, and 100% in ENGLISH.
+- DO NOT use Hindi, Hinglish, Spanish, French, German, or words from any other language.
+- Every teacher script, title, explanation, subtitles, analogy, question, and misconception note MUST be pure English only.`;
+  }
+  return `CRITICAL LANGUAGE DIRECTIVE:
+The student selected ${clean}.
+- Teach and write all explanations, scripts, and descriptions strictly in ${clean} while keeping programming syntax and mathematical symbols standard.`;
+}
+
 // 1. Create or retrieve session
 app.post("/api/session", (req, res) => {
   try {
@@ -435,10 +451,12 @@ app.post("/api/lesson/plan", async (req, res) => {
 Create a structured, highly engaging educational lesson plan for the specific topic: "${targetTopic}".
 Student parameters:
 - Education Level: ${userLevel}
-- Preferred Language: ${userLang} (maintain instruction in this language if requested, e.g. Hinglish, Hindi, Spanish, etc.)
+- Preferred Language: ${userLang}
 - Time Available: ${userTime}
 - Teaching Style: ${style}
 ${documentText ? `\nContext from student's uploaded document:\n${documentText.slice(0, 3500)}\n` : ""}
+
+${getStrictLanguageRule(userLang)}
 
 CRITICAL DOMAIN INSTRUCTION:
 Tailor all sections, concepts, and visualType directly to "${targetTopic}".
@@ -570,6 +588,8 @@ Your goal is to teach "${currentTopic}" deeply, clearly, and engagingly to an ${
 Student Language: "${lang}"
 Level: "${userLevel}"
 ${documentText ? `Document Context:\n${documentText.slice(0, 3000)}\n` : ""}
+
+${getStrictLanguageRule(lang)}
 
 CRITICAL TEACHING QUALITY REQUIREMENTS:
 1. "teacherScript" MUST be a rich, thorough, warm masterclass lecture (4-6 complete, substantive sentences). Do NOT provide shallow 1-line summaries. The teacher should:
@@ -1120,6 +1140,8 @@ Student Level: "${userLevel}"
 Language: "${lang}"
 ${documentText ? `Uploaded Material Context:\n${documentText.slice(0, 3000)}\n` : ""}
 
+${getStrictLanguageRule(lang)}
+
 CRITICAL INSTRUCTION:
 All 5 questions MUST be strictly about "${currentTopic}".
 Do NOT generate electrical physics or Ohm's Law questions unless the topic is specifically electrical circuits.
@@ -1490,8 +1512,10 @@ app.post("/api/lesson/ask", async (req, res) => {
 
     const prompt = `You are Teacher Nova, a warm, encouraging, human-like AI educator teaching a student about "${currentTopic}".
 Current Concept being discussed: "${currentConcept || "Core Foundations"}".
-Student's preferred language: "${lang}". If the student asks in Hinglish, Hindi, Spanish, etc., answer naturally in that language while keeping technical terms accurate.
+Student's preferred language: "${lang}".
 Student level: "${level || "Intermediate"}".
+
+${getStrictLanguageRule(lang)}
 
 ${hasRagContext ? `GROUNDING RAG CONTEXT (Retrieved from student's uploaded material):\n${ragContextStr}\n\nSTRICT RAG SAFETY RULE: Base factual claims strictly on the provided context where applicable. If the question asks about something completely absent and unrelated to the uploaded material, clearly state that it is not covered in the document.` : ""}
 
@@ -1639,6 +1663,9 @@ Concept: "${currentConcept || "Core Concept"}"
 Question: "${question || "Conceptual question"}"
 Student Selected: "${selectedOption || studentAnswer}"
 Correct Answer: "${correctAnswer || "A"}"
+Language: "${req.body.language || "English"}"
+
+${getStrictLanguageRule(req.body.language)}
 
 Analyze why the student answered incorrectly regarding "${currentTopic}".
 Detect their specific misconception and formulate an adaptive remediation strategy tailored to this exact subject.
@@ -1728,13 +1755,16 @@ Output JSON format:
 // Dynamic Subject-Aware Curriculum Roadmap Agent
 app.post("/api/lesson/roadmap", async (req, res) => {
   try {
-    const { topic, level, assessmentScore, weakAreas, strongAreas, documentSections } = req.body;
+    const { topic, level, assessmentScore, weakAreas, strongAreas, documentSections, language } = req.body;
     const currentTopic = topic || "Foundational Curriculum";
     const userScore = assessmentScore ?? 80;
+    const lang = language || "English";
 
     const prompt = `You are TeachAI's Adaptive Learning Path & Curriculum Director.
 Create a personalized 5-milestone learning roadmap for the topic: "${currentTopic}".
 Student Assessment Score: ${userScore}%
+Language: "${lang}"
+${getStrictLanguageRule(lang)}
 Weak Areas: ${JSON.stringify(weakAreas || [])}
 Strong Areas: ${JSON.stringify(strongAreas || [])}
 ${documentSections ? `Document Sections: ${JSON.stringify(documentSections)}\n` : ""}

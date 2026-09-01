@@ -368,6 +368,7 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
             correctAnswer: currentQuestion.correctAnswer,
             topic: topicTitle,
             currentConcept: currentQuestion.concept,
+            language: userLanguage,
           }),
         });
         if (res.ok) {

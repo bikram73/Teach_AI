@@ -129,6 +129,7 @@ export default function App() {
             topicTitle={formState.topicText || (formState.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Topic') : "Basic Circuits & Ohm's Law")}
             documentText={formState.uploadedFileContent}
             userLevel={formState.currentLevel}
+            userLanguage={formState.language}
           />
         )}
       </main>
