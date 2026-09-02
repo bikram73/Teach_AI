@@ -100,9 +100,12 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
 
   const handleSubmit = async () => {
     setLoadingPlan(true);
+    const cleanUploadName = formData.uploadedFileName
+      ? formData.uploadedFileName.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ')
+      : 'Uploaded Document';
     const finalForm: PersonalizeFormState = {
       ...formData,
-      topicText: formData.sourceMaterial === 'topic' ? topicInput : (formData.uploadedFileName || 'Uploaded Document'),
+      topicText: formData.sourceMaterial === 'topic' ? (topicInput.trim() || 'Foundational Concepts') : cleanUploadName,
     };
 
     try {
