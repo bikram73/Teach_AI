@@ -306,7 +306,7 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
               </span>
               <span className="bg-[#eff1ff] text-[#4648d4] text-xs font-semibold px-3 py-1 rounded-lg border border-[#c7c4d7]/60 flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px]">schedule</span>
-                Duration: {plan.estimatedMinutes} mins
+                Duration: {formState?.timeAvailable || `${plan.estimatedMinutes} mins`}
               </span>
               <span className="bg-[#eff1ff] text-[#4648d4] text-xs font-semibold px-3 py-1 rounded-lg border border-[#c7c4d7]/60 flex items-center gap-1">
                 <span className="material-symbols-outlined text-[14px]">translate</span>

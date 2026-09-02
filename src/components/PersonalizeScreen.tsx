@@ -21,6 +21,9 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
 
   const [topicInput, setTopicInput] = useState("Basic Circuits & Ohm's Law");
   const [isLangOpen, setIsLangOpen] = useState(false);
+  const [isCustomTime, setIsCustomTime] = useState(false);
+  const [customTimeValue, setCustomTimeValue] = useState('45');
+  const [customTimeUnit, setCustomTimeUnit] = useState<'minutes' | 'hours' | 'days' | 'weeks'>('minutes');
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(false);
@@ -308,20 +311,30 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-10">
             {/* Step 4: Time Available */}
             <section className="flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#e2e7ff] text-[#131b2e] text-xs font-bold">
-                  4
-                </span>
-                <h2 className="text-lg font-bold text-[#131b2e]">Available Time</h2>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#e2e7ff] text-[#131b2e] text-xs font-bold">
+                    4
+                  </span>
+                  <h2 className="text-lg font-bold text-[#131b2e]">Available Time</h2>
+                </div>
+                {isCustomTime && (
+                  <span className="text-xs font-semibold text-[#4648d4] bg-[#f2f3ff] px-2.5 py-0.5 rounded-full border border-[#4648d4]/20">
+                    {customTimeValue} {customTimeUnit}
+                  </span>
+                )}
               </div>
               <div className="flex flex-wrap gap-2">
                 {(['5m', '10m', '20m', '30m', '60m', '7 days'] as const).map((time) => (
                   <button
                     key={time}
                     type="button"
-                    onClick={() => setFormData({ ...formData, timeAvailable: time })}
+                    onClick={() => {
+                      setIsCustomTime(false);
+                      setFormData({ ...formData, timeAvailable: time });
+                    }}
                     className={`px-3.5 py-1.5 rounded-full border text-xs sm:text-sm font-medium transition-all ${
-                      formData.timeAvailable === time
+                      !isCustomTime && formData.timeAvailable === time
                         ? 'bg-[#6063ee] text-white border-[#6063ee] shadow-sm'
                         : 'border-[#c7c4d7]/70 text-[#464554] bg-white hover:bg-[#f2f3ff]'
                     }`}
@@ -329,7 +342,78 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
                     {time}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCustomTime(true);
+                    setFormData({ ...formData, timeAvailable: `${customTimeValue} ${customTimeUnit}` });
+                  }}
+                  className={`px-3.5 py-1.5 rounded-full border text-xs sm:text-sm font-medium transition-all flex items-center gap-1.5 ${
+                    isCustomTime
+                      ? 'bg-[#6063ee] text-white border-[#6063ee] shadow-sm'
+                      : 'border-[#c7c4d7]/70 text-[#464554] bg-white hover:bg-[#f2f3ff]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">tune</span>
+                  <span>Custom Time</span>
+                </button>
               </div>
+
+              {/* Custom Time Input Drawer / Form */}
+              {isCustomTime && (
+                <div className="mt-2 p-3 rounded-xl bg-[#f8f9ff] border border-[#4648d4]/30 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 animate-fadeIn">
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className="text-xs font-semibold text-[#464554] whitespace-nowrap">Duration:</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={customTimeValue}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomTimeValue(val);
+                        if (val) {
+                          setFormData((prev) => ({ ...prev, timeAvailable: `${val} ${customTimeUnit}` }));
+                        }
+                      }}
+                      className="w-20 px-3 py-1.5 text-sm font-semibold text-[#131b2e] bg-white border border-[#c7c4d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4648d4]/30 focus:border-[#4648d4]"
+                      placeholder="e.g. 45"
+                    />
+                    <select
+                      value={customTimeUnit}
+                      onChange={(e) => {
+                        const unit = e.target.value as 'minutes' | 'hours' | 'days' | 'weeks';
+                        setCustomTimeUnit(unit);
+                        setFormData((prev) => ({ ...prev, timeAvailable: `${customTimeValue || 45} ${unit}` }));
+                      }}
+                      className="px-3 py-1.5 text-xs sm:text-sm font-medium text-[#131b2e] bg-white border border-[#c7c4d7] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4648d4]/30 focus:border-[#4648d4] cursor-pointer"
+                    >
+                      <option value="minutes">Minutes</option>
+                      <option value="hours">Hours</option>
+                      <option value="days">Days</option>
+                      <option value="weeks">Weeks</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-1.5 overflow-x-auto text-[11px] text-[#4648d4] font-medium pt-1 sm:pt-0">
+                    <span className="text-[#464554] text-[11px]">Quick:</span>
+                    {['15m', '45m', '90m', '2 hours', '14 days', '30 days'].map((quick) => (
+                      <button
+                        key={quick}
+                        type="button"
+                        onClick={() => {
+                          const [num, unit] = quick.includes(' ') ? quick.split(' ') : [quick.replace(/[^\d]/g, ''), quick.includes('m') ? 'minutes' : 'days'];
+                          setCustomTimeValue(num);
+                          setCustomTimeUnit(unit as any);
+                          setFormData((prev) => ({ ...prev, timeAvailable: quick }));
+                        }}
+                        className="px-2 py-1 rounded-md bg-white hover:bg-[#e1e0ff] border border-[#c7c4d7]/60 text-[#131b2e] text-[11px] whitespace-nowrap transition-colors"
+                      >
+                        {quick}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* Step 5: Language */}

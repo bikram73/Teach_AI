@@ -33,7 +33,7 @@ export interface PersonalizeFormState {
   documentProfile?: DocumentProfile;
   currentLevel: 'Beginner' | 'Intermediate' | 'Advanced';
   primaryGoal: 'Fundamentals' | 'Exam Prep' | 'Deep Dive' | 'Quick Review' | 'Interview Prep';
-  timeAvailable: '5m' | '10m' | '20m' | '30m' | '60m' | '7 days';
+  timeAvailable: string;
   language: string;
   teachingStyle: 'simple' | 'conceptual' | 'socratic' | 'examples_first' | 'technical';
 }
