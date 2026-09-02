@@ -4,9 +4,15 @@ import { ScreenType } from '../types';
 
 interface HomeScreenProps {
   onNavigate: (screen: ScreenType) => void;
+  userName?: string | null;
+  onOpenNameModal?: () => void;
 }
 
-export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
+export const HomeScreen: React.FC<HomeScreenProps> = ({ 
+  onNavigate,
+  userName,
+  onOpenNameModal 
+}) => {
   return (
     <div className="flex flex-col w-full min-h-[calc(100vh-65px)] pb-16 md:pb-8">
       {/* Hero Section */}
@@ -19,17 +25,40 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({ onNavigate }) => {
 
         {/* Hero Content Left */}
         <div className="flex-1 flex flex-col items-start space-y-6 z-10">
-          <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#f2f3ff] border border-[#c7c4d7]/70 rounded-full mb-1 ai-glow">
-            <span className="material-symbols-outlined text-[#4648d4] text-[16px]">auto_awesome</span>
-            <span className="font-semibold text-xs text-[#4648d4] tracking-wide">Powered by Advanced AI</span>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#f2f3ff] border border-[#c7c4d7]/70 rounded-full ai-glow">
+              <span className="material-symbols-outlined text-[#4648d4] text-[16px]">auto_awesome</span>
+              <span className="font-semibold text-xs text-[#4648d4] tracking-wide">
+                {userName ? `Welcome back, ${userName}!` : 'Powered by Advanced AI'}
+              </span>
+            </div>
+            {userName && (
+              <button
+                onClick={onOpenNameModal}
+                className="text-[11px] font-semibold text-[#464554] hover:text-[#4648d4] underline cursor-pointer"
+              >
+                Change name
+              </button>
+            )}
           </div>
 
           <h1 className="text-4xl sm:text-5xl lg:text-[52px] font-extrabold text-[#131b2e] leading-[1.1] tracking-tight">
-            Meet Your <span className="ai-gradient-text">AI Teacher.</span>
+            {userName ? (
+              <>
+                Ready to Learn, <span className="ai-gradient-text">{userName}?</span>
+              </>
+            ) : (
+              <>
+                Meet Your <span className="ai-gradient-text">AI Teacher.</span>
+              </>
+            )}
           </h1>
 
           <p className="text-base md:text-lg text-[#464554] max-w-xl leading-relaxed">
-            Learn anything from your books, notes, PDFs, or any topic — with a teacher that adapts to you. Achieve mastery faster with personalized guidance.
+            {userName 
+              ? `Nova AI is ready to teach you custom subjects, notes, and exam prep adapted precisely to your pace.` 
+              : `Learn anything from your books, notes, PDFs, or any topic — with a teacher that adapts to you. Achieve mastery faster with personalized guidance.`
+            }
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto pt-2">

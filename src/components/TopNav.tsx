@@ -5,9 +5,16 @@ import { ScreenType } from '../types';
 interface TopNavProps {
   currentScreen: ScreenType;
   onNavigate: (screen: ScreenType) => void;
+  userName?: string | null;
+  onOpenNameModal?: () => void;
 }
 
-export const TopNav: React.FC<TopNavProps> = ({ currentScreen, onNavigate }) => {
+export const TopNav: React.FC<TopNavProps> = ({ 
+  currentScreen, 
+  onNavigate,
+  userName,
+  onOpenNameModal 
+}) => {
   return (
     <header className="bg-[#faf8ff] docked full-width top-0 border-b border-[#c7c4d7]/60 shadow-sm z-50 sticky">
       <div className="flex justify-between items-center w-full px-6 py-2 max-w-[1280px] mx-auto">
@@ -63,7 +70,7 @@ export const TopNav: React.FC<TopNavProps> = ({ currentScreen, onNavigate }) => 
           </button>
         </nav>
 
-        {/* Right utility icons & Avatar */}
+        {/* Right utility icons & User Profile Name */}
         <div className="flex items-center gap-2 text-[#4648d4]">
           <button 
             title="Language"
@@ -72,7 +79,7 @@ export const TopNav: React.FC<TopNavProps> = ({ currentScreen, onNavigate }) => 
             <span className="material-symbols-outlined text-[20px]">language</span>
           </button>
           <button 
-            title="Help"
+            title="Help & Adaptive Support"
             onClick={() => onNavigate('adaptive')}
             className="p-2 hover:bg-[#f2f3ff] rounded-full transition-all flex items-center justify-center text-[#4648d4]"
           >
@@ -85,9 +92,39 @@ export const TopNav: React.FC<TopNavProps> = ({ currentScreen, onNavigate }) => 
           >
             <span className="material-symbols-outlined text-[20px]">settings</span>
           </button>
+
+          {/* User Name & Profile Badge */}
+          {userName ? (
+            <button
+              type="button"
+              onClick={onOpenNameModal}
+              title="Click to edit your name"
+              className="flex items-center gap-2 pl-2 pr-3 py-1 rounded-full bg-[#f2f3ff] hover:bg-[#e2e7ff] border border-[#c7c4d7]/70 text-[#131b2e] transition-all cursor-pointer group ml-1"
+            >
+              <div className="w-7 h-7 rounded-full bg-[#4648d4] text-white flex items-center justify-center text-xs font-bold shadow-xs">
+                {userName.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-xs font-bold text-[#131b2e] max-w-[110px] truncate">
+                {userName}
+              </span>
+              <span className="material-symbols-outlined text-[14px] text-[#464554] group-hover:text-[#4648d4]">
+                edit
+              </span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onOpenNameModal}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#e2e7ff] hover:bg-[#d5dcff] text-[#4648d4] text-xs font-bold transition-all ml-1"
+            >
+              <span className="material-symbols-outlined text-[16px]">account_circle</span>
+              <span className="hidden sm:inline">Set Name</span>
+            </button>
+          )}
+
           <div 
             onClick={() => onNavigate('results')}
-            className="w-8 h-8 rounded-full bg-[#dae2fd] overflow-hidden ml-2 border border-[#c7c4d7] cursor-pointer hover:ring-2 hover:ring-[#4648d4] transition-all"
+            className="w-8 h-8 rounded-full bg-[#dae2fd] overflow-hidden ml-1 border border-[#c7c4d7] cursor-pointer hover:ring-2 hover:ring-[#4648d4] transition-all shrink-0"
             title="View Profile Progress"
           >
             <img

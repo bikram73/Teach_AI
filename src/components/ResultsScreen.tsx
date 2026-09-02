@@ -7,12 +7,14 @@ interface ResultsScreenProps {
   onNavigate: (screen: ScreenType) => void;
   assessmentSummary?: UserAssessmentSummary;
   topicTitle?: string;
+  userName?: string | null;
 }
 
 export const ResultsScreen: React.FC<ResultsScreenProps> = ({
   onNavigate,
   assessmentSummary,
   topicTitle = "Foundational Concepts",
+  userName,
 }) => {
   const currentTopic = assessmentSummary?.topicTitle || topicTitle;
 
@@ -123,7 +125,9 @@ export const ResultsScreen: React.FC<ResultsScreenProps> = ({
               {isHighMastery ? 'Mastery Achieved 🎉' : isModerate ? 'Good Progress • Review Recommended' : 'Foundational Review Needed'}
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-[#131b2e] mb-2 tracking-tight">
-              {isHighMastery ? 'Great job! Here is your performance.' : 'Lesson Assessment Complete!'}
+              {userName 
+                ? `${userName}, ${isHighMastery ? 'here is your mastery report!' : 'here is your assessment summary.'}`
+                : isHighMastery ? 'Great job! Here is your performance.' : 'Lesson Assessment Complete!'}
             </h1>
             <p className="text-sm text-[#464554] max-w-lg leading-relaxed">
               You answered <span className="font-bold text-[#4648d4]">{summary.correctCount} of {summary.totalQuestions}</span> questions correctly on <span className="font-semibold text-[#131b2e]">{summary.topicTitle || currentTopic}</span>. Your adaptive learning roadmap has updated automatically.

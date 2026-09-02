@@ -6,9 +6,10 @@ import { getLanguageBCP47, getBestVoice, isPureEnglish } from '../utils/language
 interface ClassroomScreenProps {
   onNavigate: (screen: ScreenType) => void;
   formState?: PersonalizeFormState;
+  userName?: string | null;
 }
 
-export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, formState }) => {
+export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, formState, userName }) => {
   const currentTopic = formState?.topicText || (formState?.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Subject') : "Foundational Topic");
   
   // Detect primary visual mode based on topic

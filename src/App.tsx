@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HomeScreen } from './components/HomeScreen';
 import { PersonalizeScreen } from './components/PersonalizeScreen';
 import { PlanningScreen } from './components/PlanningScreen';
@@ -9,10 +9,17 @@ import { ResultsScreen } from './components/ResultsScreen';
 import { LearningPathScreen } from './components/LearningPathScreen';
 import { TopNav } from './components/TopNav';
 import { MobileBottomNav } from './components/MobileBottomNav';
+import { UserNameModal } from './components/UserNameModal';
+import { getStoredUserName, saveStoredUserName } from './utils/userStorage';
 import { LessonPlan, PersonalizeFormState, ScreenType, UserAssessmentSummary } from './types';
 
 export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('home');
+  const [userName, setUserName] = useState<string | null>(() => getStoredUserName());
+  const [isNameModalOpen, setIsNameModalOpen] = useState(false);
+  const [targetScreenForModal, setTargetScreenForModal] = useState<ScreenType | null>(null);
+  const [isNameEditMode, setIsNameEditMode] = useState(false);
+
   const [formState, setFormState] = useState<PersonalizeFormState>({
     sourceMaterial: 'upload',
     topicText: "Basic Circuits & Ohm's Law",
@@ -26,6 +33,56 @@ export default function App() {
   });
   const [lessonPlan, setLessonPlan] = useState<LessonPlan | undefined>(undefined);
   const [assessmentSummary, setAssessmentSummary] = useState<UserAssessmentSummary | undefined>(undefined);
+
+  // Sync stored user name on startup
+  useEffect(() => {
+    const saved = getStoredUserName();
+    if (saved) {
+      setUserName(saved);
+    }
+  }, []);
+
+  /**
+   * Intercepts navigation: If user name is missing, prompts user for their name first,
+   * stores it persistently in browser cookies/cache, and then smoothly navigates to target.
+   */
+  const handleProtectedNavigate = (targetScreen: ScreenType) => {
+    // If navigating back to home, always allow
+    if (targetScreen === 'home') {
+      setCurrentScreen('home');
+      return;
+    }
+
+    const saved = userName || getStoredUserName();
+    if (!saved) {
+      // First time user: open modal before continuing
+      setTargetScreenForModal(targetScreen);
+      setIsNameEditMode(false);
+      setIsNameModalOpen(true);
+      return;
+    }
+
+    // Name already present: navigate immediately
+    setCurrentScreen(targetScreen);
+  };
+
+  const handleSaveUserName = (name: string) => {
+    setUserName(name);
+    saveStoredUserName(name);
+    setIsNameModalOpen(false);
+
+    // If there was a pending target screen from navigation intercept, go to it
+    if (targetScreenForModal) {
+      setCurrentScreen(targetScreenForModal);
+      setTargetScreenForModal(null);
+    }
+  };
+
+  const handleOpenEditNameModal = () => {
+    setIsNameEditMode(true);
+    setTargetScreenForModal(null);
+    setIsNameModalOpen(true);
+  };
 
   const handleSetFormState = (form: PersonalizeFormState, plan?: LessonPlan) => {
     setFormState(form);
@@ -50,7 +107,12 @@ export default function App() {
   return (
     <div className="min-h-screen w-full flex flex-col font-sans transition-colors duration-200 bg-[#faf8ff] text-[#131b2e]">
       {/* Universal Top Nav Header */}
-      <TopNav currentScreen={currentScreen} onNavigate={setCurrentScreen} />
+      <TopNav 
+        currentScreen={currentScreen} 
+        onNavigate={handleProtectedNavigate} 
+        userName={userName}
+        onOpenNameModal={handleOpenEditNameModal}
+      />
 
       {/* Screen Quick Switcher Ribbon */}
       <div className="w-full py-1.5 px-4 text-xs flex items-center justify-between overflow-x-auto border-b z-30 transition-colors bg-[#eaedff]/80 text-[#131b2e]/80 border-[#c7c4d7]/60">
@@ -62,7 +124,7 @@ export default function App() {
           {screenLabels.map((s) => (
             <button
               key={s.id}
-              onClick={() => setCurrentScreen(s.id)}
+              onClick={() => handleProtectedNavigate(s.id)}
               className={`px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1 transition-all whitespace-nowrap cursor-pointer ${
                 currentScreen === s.id
                   ? 'bg-[#4648d4] text-white shadow-sm'
@@ -78,29 +140,36 @@ export default function App() {
 
       {/* Dynamic Screen View */}
       <main className="flex-1 flex flex-col">
-        {currentScreen === 'home' && <HomeScreen onNavigate={setCurrentScreen} />}
+        {currentScreen === 'home' && (
+          <HomeScreen 
+            onNavigate={handleProtectedNavigate} 
+            userName={userName}
+            onOpenNameModal={handleOpenEditNameModal}
+          />
+        )}
         {currentScreen === 'personalize' && (
           <PersonalizeScreen
-            onNavigate={setCurrentScreen}
+            onNavigate={handleProtectedNavigate}
             onSetFormState={handleSetFormState}
           />
         )}
         {currentScreen === 'planning' && (
           <PlanningScreen
-            onNavigate={setCurrentScreen}
+            onNavigate={handleProtectedNavigate}
             formState={formState}
             lessonPlan={lessonPlan}
           />
         )}
         {currentScreen === 'classroom' && (
           <ClassroomScreen
-            onNavigate={setCurrentScreen}
+            onNavigate={handleProtectedNavigate}
             formState={formState}
+            userName={userName}
           />
         )}
         {currentScreen === 'question' && (
           <QuestionScreen
-            onNavigate={setCurrentScreen}
+            onNavigate={handleProtectedNavigate}
             onCompleteAssessment={handleCompleteAssessment}
             topicTitle={formState.topicText || (formState.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Topic') : "Basic Circuits & Ohm's Law")}
             documentText={formState.uploadedFileContent}
@@ -110,21 +179,22 @@ export default function App() {
         )}
         {currentScreen === 'adaptive' && (
           <AdaptiveScreen
-            onNavigate={setCurrentScreen}
+            onNavigate={handleProtectedNavigate}
             assessmentSummary={assessmentSummary}
             topicTitle={formState.topicText || (formState.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Topic') : "Basic Circuits & Ohm's Law")}
           />
         )}
         {currentScreen === 'results' && (
           <ResultsScreen
-            onNavigate={setCurrentScreen}
+            onNavigate={handleProtectedNavigate}
             assessmentSummary={assessmentSummary}
             topicTitle={formState.topicText || (formState.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Topic') : "Basic Circuits & Ohm's Law")}
+            userName={userName}
           />
         )}
         {currentScreen === 'path' && (
           <LearningPathScreen
-            onNavigate={setCurrentScreen}
+            onNavigate={handleProtectedNavigate}
             assessmentSummary={assessmentSummary}
             topicTitle={formState.topicText || (formState.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Topic') : "Basic Circuits & Ohm's Law")}
             documentText={formState.uploadedFileContent}
@@ -137,8 +207,18 @@ export default function App() {
       {/* Mobile Bottom Navigation Bar */}
       <MobileBottomNav
         currentScreen={currentScreen}
-        onNavigate={setCurrentScreen}
+        onNavigate={handleProtectedNavigate}
         dark={false}
+      />
+
+      {/* First-Time / Edit User Name Modal */}
+      <UserNameModal
+        isOpen={isNameModalOpen}
+        onClose={() => setIsNameModalOpen(false)}
+        onSave={handleSaveUserName}
+        targetScreen={targetScreenForModal}
+        currentName={userName || ''}
+        isEditMode={isNameEditMode}
       />
     </div>
   );
