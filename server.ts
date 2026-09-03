@@ -139,7 +139,7 @@ async function generateWithGemini(
         const response = await Promise.race([responsePromise, timeoutPromise]);
 
         if (response && response.text) {
-          return { text: response.text, modelUsed: model, provider: "gemini" };
+          return { text: response.text, modelUsed: "TeachAI Core", provider: "primary" };
         }
       } catch (err: any) {
         const isUnavailableOrRateLimit =
@@ -380,6 +380,29 @@ function parseJSONFromText(text: string): any {
   }
 }
 
+// Helper: sanitize text output destined for project UI
+function sanitizeUIOutput(val: any): any {
+  if (!val) return val;
+  if (typeof val === "string") {
+    return val
+      .replace(/\bGoogle\s+Gemini\b/gi, "TeachAI")
+      .replace(/\bGemini-[\w.-]+\b/gi, "TeachAI Engine")
+      .replace(/\bGemini\b/gi, "TeachAI")
+      .replace(/\bgemini\b/gi, "TeachAI");
+  }
+  if (Array.isArray(val)) {
+    return val.map(sanitizeUIOutput);
+  }
+  if (typeof val === "object") {
+    const result: any = {};
+    for (const k of Object.keys(val)) {
+      result[k] = sanitizeUIOutput(val[k]);
+    }
+    return result;
+  }
+  return val;
+}
+
 // ----------------------------------------------------
 // API ROUTES
 // ----------------------------------------------------
@@ -390,7 +413,7 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     timestamp: new Date().toISOString(),
     aiProviders: {
-      gemini: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy-key"),
+      primaryAi: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy-key"),
       openrouter: Boolean(process.env.OPENROUTER_API_KEY),
       groq: Boolean(process.env.GROQ_API_KEY),
     },
@@ -403,9 +426,9 @@ app.get("/api/ai/status", (req, res) => {
     cascade: [
       {
         tier: 1,
-        provider: "Gemini",
+        provider: "TeachAI Core",
         configured: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy-key"),
-        description: "Primary Google GenAI Engine (gemini-3.8-flash, gemini-3.6-flash, gemini-flash-latest, gemini-3.1-flash-lite)",
+        description: "Primary Multi-Modal AI Engine (adaptive interactive learning and curriculum generator)",
       },
       {
         tier: 2,
@@ -575,7 +598,7 @@ Output JSON matching this schema:
     if (geminiResult && geminiResult.text) {
       const parsed = parseJSONFromText(geminiResult.text);
       if (parsed && parsed.primaryTopic) {
-        return res.json({ success: true, profile: parsed, modelUsed: geminiResult.modelUsed });
+        return res.json({ success: true, profile: sanitizeUIOutput(parsed), modelUsed: "TeachAI Core" });
       }
     }
 
@@ -744,7 +767,7 @@ Follow this JSON schema strictly:
     if (geminiResult && geminiResult.text) {
       const parsed = parseJSONFromText(geminiResult.text);
       if (parsed && parsed.sections && parsed.sections.length > 0) {
-        return res.json({ success: true, lessonPlan: parsed, modelUsed: geminiResult.modelUsed });
+        return res.json({ success: true, lessonPlan: sanitizeUIOutput(parsed), modelUsed: "TeachAI Core" });
       }
     }
 
@@ -932,7 +955,7 @@ Output JSON format strictly:
     if (geminiResult && geminiResult.text) {
       const parsed = parseJSONFromText(geminiResult.text);
       if (parsed && parsed.scenes && parsed.scenes.length > 0) {
-        return res.json({ success: true, scenes: parsed.scenes, modelUsed: geminiResult.modelUsed });
+        return res.json({ success: true, scenes: sanitizeUIOutput(parsed.scenes), modelUsed: "TeachAI Core" });
       }
     }
 
@@ -1538,7 +1561,7 @@ Output JSON format strictly:
     if (geminiResult && geminiResult.text) {
       const parsed = parseJSONFromText(geminiResult.text);
       if (parsed && parsed.questions && parsed.questions.length >= 4) {
-        return res.json({ success: true, questions: parsed.questions, modelUsed: geminiResult.modelUsed });
+        return res.json({ success: true, questions: sanitizeUIOutput(parsed.questions), modelUsed: "TeachAI Core" });
       }
     }
 
@@ -1886,6 +1909,7 @@ app.post("/api/lesson/ask", async (req, res) => {
       .join("\n\n");
 
     const prompt = `You are Teacher Nova, a warm, encouraging, human-like AI educator teaching a student about "${currentTopic}".
+IDENTITY & PRIVACY DIRECTIVE: You are Teacher Nova, an adaptive tutor built for TeachAI. Never mention "Gemini", "Google Gemini", or identify as Gemini. If asked who you are or what model powers you, warmly state that you are Teacher Nova, an adaptive AI educator and personal learning mentor.
 Current Concept being discussed: "${currentConcept || "Core Foundations"}".
 Student's preferred language: "${lang}".
 Student level: "${level || "Intermediate"}".
@@ -1915,7 +1939,7 @@ Provide structured JSON:
       if (parsed && parsed.answer) {
         return res.json({
           success: true,
-          response: parsed,
+          response: sanitizeUIOutput(parsed),
           grounding: {
             isGrounded: hasRagContext,
             retrievedChunksCount: matchedChunks.length,
@@ -2078,7 +2102,7 @@ Output JSON format:
       if (geminiResult && geminiResult.text) {
         const parsed = parseJSONFromText(geminiResult.text);
         if (parsed && parsed.misconception) {
-          return res.json({ success: true, evaluation: parsed });
+          return res.json({ success: true, evaluation: sanitizeUIOutput(parsed) });
         }
       }
     }
@@ -2167,7 +2191,7 @@ Output JSON format strictly:
     if (geminiResult && geminiResult.text) {
       const parsed = parseJSONFromText(geminiResult.text);
       if (parsed && parsed.nodes && parsed.nodes.length > 0) {
-        return res.json({ success: true, nodes: parsed.nodes, modelUsed: geminiResult.modelUsed });
+        return res.json({ success: true, nodes: sanitizeUIOutput(parsed.nodes), modelUsed: "TeachAI Core" });
       }
     }
 

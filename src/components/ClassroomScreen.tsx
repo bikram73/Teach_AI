@@ -631,18 +631,23 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
 
       if (res.ok) {
         const data = await res.json();
+        const rawAnswer = data.response?.answer || '';
+        const rawAnalogy = data.response?.analogy || '';
+        const cleanAnswer = rawAnswer.replace(/\bGoogle\s+Gemini\b/gi, 'TeachAI').replace(/\bGemini\b/gi, 'TeachAI');
+        const cleanAnalogy = rawAnalogy.replace(/\bGoogle\s+Gemini\b/gi, 'TeachAI').replace(/\bGemini\b/gi, 'TeachAI');
+
         setChatLog((prev) => [
           ...prev,
           {
             sender: 'nova',
-            text: data.response.answer,
-            analogy: data.response.analogy,
+            text: cleanAnswer,
+            analogy: cleanAnalogy,
             citations: data.grounding?.citations,
           },
         ]);
 
         if ('speechSynthesis' in window && !isMuted) {
-          const u = new SpeechSynthesisUtterance(data.response.answer);
+          const u = new SpeechSynthesisUtterance(cleanAnswer);
           u.rate = 1.0;
           u.lang = getLanguageBCP47(formState?.language);
           const voices = window.speechSynthesis.getVoices();
