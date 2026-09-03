@@ -108,7 +108,7 @@ function extractPromptString(contents: any): string {
 async function generateWithGemini(
   contents: any,
   config: any = {},
-  preferredModel = "gemini-3.7-flash"
+  preferredModel = "gemini-3.8-flash"
 ): Promise<{ text: string; modelUsed: string; provider: string } | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "dummy-key") return null;
@@ -116,7 +116,8 @@ async function generateWithGemini(
   const ai = getGemini();
   const candidateModels = [
     preferredModel,
-    "gemini-2.5-flash",
+    "gemini-3.8-flash",
+    "gemini-3.6-flash",
     "gemini-flash-latest",
     "gemini-3.1-flash-lite",
   ].filter((m, i, arr) => arr.indexOf(m) === i);
@@ -303,7 +304,7 @@ async function generateWithGroq(
 async function generateAIContent(
   contents: any,
   config: any = {},
-  preferredModel = "gemini-3.7-flash"
+  preferredModel = "gemini-3.8-flash"
 ): Promise<{ text: string; modelUsed: string; provider: string } | null> {
   // 1. Try Gemini
   try {
@@ -404,7 +405,7 @@ app.get("/api/ai/status", (req, res) => {
         tier: 1,
         provider: "Gemini",
         configured: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy-key"),
-        description: "Primary Google GenAI Engine (gemini-3.7-flash, gemini-2.5-flash, gemini-flash-latest)",
+        description: "Primary Google GenAI Engine (gemini-3.8-flash, gemini-3.6-flash, gemini-flash-latest, gemini-3.1-flash-lite)",
       },
       {
         tier: 2,

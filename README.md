@@ -60,7 +60,7 @@ $$\text{Understand} \longrightarrow \text{Plan} \longrightarrow \text{Explain} \
 
 ### 🌟 Core Capabilities
 - ⚡ **Multi-Tier AI Fallback Engine (Zero Downtime)**:
-  - **Tier 1 (Primary)**: Google Gemini (`gemini-3.7-flash`, `gemini-2.5-flash`, `gemini-flash-latest`, `gemini-3.1-flash-lite`) via `@google/genai` with exponential backoff on 503/429 quota spikes.
+  - **Tier 1 (Primary)**: Google Gemini (`gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-flash-latest`, `gemini-3.1-flash-lite`) via `@google/genai` with exponential backoff on 503/429 quota spikes.
   - **Tier 2 (Fallback)**: OpenRouter API (`google/gemini-2.0-flash-001`, `meta-llama/llama-3.3-70b-instruct`, `mistralai/mistral-small-24b-instruct-2501`) with custom model support (`OPENROUTER_MODEL`).
   - **Tier 3 (Ultra-Fast Fallback)**: Groq LPU (`llama-3.3-70b-versatile`, `llama-3.1-8b-instant`) with 9-second timeout guards (`GROQ_MODEL`).
   - **Tier 4 (Offline Fallback)**: Built-in deterministic pedagogical heuristics ensuring 100% system uptime without crashes.
@@ -162,12 +162,12 @@ Rather than delivering a static pre-recorded video or a basic talking-head anima
 <a name="ai-models"></a>
 ## 🤖 AI Models & Third-Party Service Responsibilities
 
-### 1. Google Gemini (`gemini-3.7-flash` via `@google/genai`) — Primary Engine (Tier 1)
+### 1. Google Gemini (`gemini-3.8-flash` via `@google/genai`) — Primary Engine (Tier 1)
 Google Gemini powers the primary cognitive and pedagogical intelligence across the system:
 - **Curriculum Planning (`/api/lesson/plan`)**: Synthesizes uploaded materials or topics into structured learning modules, time allocations, and prerequisite graphs.
 - **In-Class Teacher Agent (`/api/lesson/ask`)**: Formulates pedagogical answers to student questions, grounded in retrieved source document chunks.
 - **Answer Evaluation & Misconception Analysis (`/api/lesson/evaluate`)**: Evaluates student quiz selections, diagnoses underlying conceptual errors, and constructs adaptive remediation analogies.
-- **Resilience Cascade**: Cycles through `gemini-3.7-flash` ➔ `gemini-2.5-flash` ➔ `gemini-flash-latest` ➔ `gemini-3.1-flash-lite` with exponential jitter backoff on 503 high-demand / 429 quota codes.
+- **Resilience Cascade**: Cycles through `gemini-3.8-flash` ➔ `gemini-3.6-flash` ➔ `gemini-flash-latest` ➔ `gemini-3.1-flash-lite` with exponential jitter backoff on 503 high-demand / 429 quota codes.
 
 ### 2. OpenRouter API — Secondary Multi-Model Fallback (Tier 2)
 If Gemini experiences high load, quota limits, or network timeouts, requests automatically fail over to OpenRouter:
@@ -206,7 +206,7 @@ To ensure absolute **zero downtime** and uninterrupted classroom sessions during
                                         ▼
                       ┌───────────────────────────────────┐
                       │      TIER 1: Google Gemini        │
-                      │  gemini-3.7-flash ➔ gemini-2.5    │
+                      │  gemini-3.8-flash ➔ gemini-3.6    │
                       │  (Timeout: 12s | Retry on 503)    │
                       └─────────────────┬─────────────────┘
                                         │ (If failed / 429 / 503)
@@ -727,7 +727,7 @@ Exposes the active multi-tier AI fallback cascade and model hierarchy.
       "tier": 1,
       "provider": "Gemini",
       "configured": true,
-      "description": "Primary Google GenAI Engine (gemini-3.7-flash, gemini-2.5-flash, gemini-flash-latest)"
+      "description": "Primary Google GenAI Engine (gemini-3.8-flash, gemini-3.6-flash, gemini-flash-latest, gemini-3.1-flash-lite)"
     },
     {
       "tier": 2,
