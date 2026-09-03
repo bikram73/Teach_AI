@@ -84,19 +84,39 @@ function getGemini(): GoogleGenAI {
   return genAIClient;
 }
 
-// Resilient Gemini Execution with Multi-Model Cascade & 503 High Demand Exponential Backoff
-async function generateGeminiContent(
+// Resilient Multi-Provider Fallback Cascade: Gemini -> OpenRouter -> Groq -> Heuristics
+function extractPromptString(contents: any): string {
+  if (typeof contents === "string") return contents;
+  if (Array.isArray(contents)) {
+    return contents
+      .map((item) => {
+        if (typeof item === "string") return item;
+        if (item?.parts && Array.isArray(item.parts)) {
+          return item.parts.map((p: any) => p.text || "").join("\n");
+        }
+        return JSON.stringify(item);
+      })
+      .join("\n");
+  }
+  if (contents?.parts && Array.isArray(contents.parts)) {
+    return contents.parts.map((p: any) => p.text || "").join("\n");
+  }
+  return String(contents || "");
+}
+
+// 1. Tier 1: Gemini (Google GenAI)
+async function generateWithGemini(
   contents: any,
   config: any = {},
   preferredModel = "gemini-3.7-flash"
-): Promise<{ text: string; modelUsed: string } | null> {
+): Promise<{ text: string; modelUsed: string; provider: string } | null> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey || apiKey === "dummy-key") return null;
 
   const ai = getGemini();
-  // Valid, active model candidates in fallback order
   const candidateModels = [
     preferredModel,
+    "gemini-2.5-flash",
     "gemini-flash-latest",
     "gemini-3.1-flash-lite",
   ].filter((m, i, arr) => arr.indexOf(m) === i);
@@ -104,14 +124,21 @@ async function generateGeminiContent(
   for (const model of candidateModels) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const response = await ai.models.generateContent({
+        // Enforce a strict 12s timeout so Gemini doesn't block downstream fallbacks
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Gemini ${model} request timed out after 12s`)), 12000)
+        );
+
+        const responsePromise = ai.models.generateContent({
           model,
           contents,
           config,
         });
 
+        const response = await Promise.race([responsePromise, timeoutPromise]);
+
         if (response && response.text) {
-          return { text: response.text, modelUsed: model };
+          return { text: response.text, modelUsed: model, provider: "gemini" };
         }
       } catch (err: any) {
         const isUnavailableOrRateLimit =
@@ -120,29 +147,207 @@ async function generateGeminiContent(
           err?.status === 429 ||
           err?.code === 429 ||
           err?.message?.includes("503") ||
+          err?.message?.includes("timed out") ||
           err?.message?.includes("high demand") ||
           err?.message?.includes("UNAVAILABLE") ||
           err?.message?.includes("RESOURCE_EXHAUSTED");
 
         if (isUnavailableOrRateLimit && attempt < 1) {
-          // Short jitter backoff before retrying same model
-          await new Promise((resolve) => setTimeout(resolve, 400 + Math.random() * 300));
+          await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 200));
           continue;
         }
 
-        if (isUnavailableOrRateLimit) {
-          console.warn(`Model ${model} experiencing high demand (503/429). Failing over to next candidate model in cascade...`);
-          break; // Try next model in candidateModels
-        }
-
-        console.warn(`Gemini generation note on ${model}:`, err?.message || err);
-        break; // Non-retryable error, try next candidate
+        console.warn(`[Gemini Failover] ${model} unavailable or failed:`, err?.message || err);
+        break;
       }
     }
   }
 
   return null;
 }
+
+// 2. Tier 2: OpenRouter (Fallback if Gemini fails or is unconfigured)
+async function generateWithOpenRouter(
+  prompt: string,
+  config: any = {}
+): Promise<{ text: string; modelUsed: string; provider: string } | null> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+
+  const candidateModels = [
+    process.env.OPENROUTER_MODEL,
+    "google/gemini-2.0-flash-001",
+    "meta-llama/llama-3.3-70b-instruct",
+    "mistralai/mistral-small-24b-instruct-2501",
+  ].filter(Boolean) as string[];
+
+  const isJson = config?.responseMimeType === "application/json";
+
+  for (const model of candidateModels) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+      const requestBody: Record<string, any> = {
+        model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: config?.temperature ?? 0.2,
+      };
+
+      if (isJson) {
+        requestBody.response_format = { type: "json_object" };
+      }
+
+      const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": process.env.APP_URL || "https://teachai.app",
+          "X-Title": "TeachAI",
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        console.warn(`[OpenRouter Failover] Status ${res.status} on model ${model}:`, errorText.slice(0, 200));
+        continue;
+      }
+
+      const data: any = await res.json();
+      const text = data?.choices?.[0]?.message?.content;
+
+      if (text && typeof text === "string" && text.trim().length > 0) {
+        return { text: text.trim(), modelUsed: model, provider: "openrouter" };
+      }
+    } catch (err: any) {
+      console.warn(`[OpenRouter Failover] Error on model ${model}:`, err?.message || err);
+    }
+  }
+
+  return null;
+}
+
+// 3. Tier 3: Groq (Ultra-fast fallback if Gemini and OpenRouter both fail)
+async function generateWithGroq(
+  prompt: string,
+  config: any = {}
+): Promise<{ text: string; modelUsed: string; provider: string } | null> {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) {
+    return null;
+  }
+
+  const candidateModels = [
+    process.env.GROQ_MODEL,
+    "llama-3.3-70b-versatile",
+    "llama-3.1-8b-instant",
+  ].filter(Boolean) as string[];
+
+  const isJson = config?.responseMimeType === "application/json";
+
+  for (const model of candidateModels) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 9000);
+
+      const requestBody: Record<string, any> = {
+        model,
+        messages: [{ role: "user", content: prompt }],
+        temperature: config?.temperature ?? 0.2,
+      };
+
+      if (isJson) {
+        requestBody.response_format = { type: "json_object" };
+      }
+
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => "");
+        console.warn(`[Groq Failover] Status ${res.status} on model ${model}:`, errorText.slice(0, 200));
+        continue;
+      }
+
+      const data: any = await res.json();
+      const text = data?.choices?.[0]?.message?.content;
+
+      if (text && typeof text === "string" && text.trim().length > 0) {
+        return { text: text.trim(), modelUsed: model, provider: "groq" };
+      }
+    } catch (err: any) {
+      console.warn(`[Groq Failover] Error on model ${model}:`, err?.message || err);
+    }
+  }
+
+  return null;
+}
+
+// Master AI Orchestrator with Strict Multi-Tier Fallback: Gemini -> OpenRouter -> Groq -> Heuristics
+async function generateAIContent(
+  contents: any,
+  config: any = {},
+  preferredModel = "gemini-3.7-flash"
+): Promise<{ text: string; modelUsed: string; provider: string } | null> {
+  // 1. Try Gemini
+  try {
+    const geminiRes = await generateWithGemini(contents, config, preferredModel);
+    if (geminiRes) {
+      return geminiRes;
+    }
+  } catch (err: any) {
+    console.warn("[AI Fallback Pipeline] Gemini exception, transferring to OpenRouter...", err?.message);
+  }
+
+  // 2. Try OpenRouter
+  try {
+    console.log("[AI Fallback Pipeline] Gemini unavailable or exhausted. Trying Tier 2: OpenRouter...");
+    const promptString = extractPromptString(contents);
+    const openRouterRes = await generateWithOpenRouter(promptString, config);
+    if (openRouterRes) {
+      console.log(`[AI Fallback Pipeline] Handled by OpenRouter (${openRouterRes.modelUsed})`);
+      return openRouterRes;
+    }
+  } catch (err: any) {
+    console.warn("[AI Fallback Pipeline] OpenRouter exception, transferring to Groq...", err?.message);
+  }
+
+  // 3. Try Groq
+  try {
+    console.log("[AI Fallback Pipeline] OpenRouter unavailable or exhausted. Trying Tier 3: Groq...");
+    const promptString = extractPromptString(contents);
+    const groqRes = await generateWithGroq(promptString, config);
+    if (groqRes) {
+      console.log(`[AI Fallback Pipeline] Handled by Groq (${groqRes.modelUsed})`);
+      return groqRes;
+    }
+  } catch (err: any) {
+    console.warn("[AI Fallback Pipeline] Groq exception, falling back to intelligent heuristics...", err?.message);
+  }
+
+  console.log("[AI Fallback Pipeline] External providers unavailable. Using high-fidelity intelligent domain fallback.");
+  return null;
+}
+
+// Backwards-compatible alias for all endpoints
+const generateGeminiContent = generateAIContent;
+
 
 // Robust JSON parser with Markdown codeblock stripping
 function parseJSONFromText(text: string): any {
@@ -180,7 +385,47 @@ function parseJSONFromText(text: string): any {
 
 // Health Check
 app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    aiProviders: {
+      gemini: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy-key"),
+      openrouter: Boolean(process.env.OPENROUTER_API_KEY),
+      groq: Boolean(process.env.GROQ_API_KEY),
+    },
+  });
+});
+
+// AI Provider Cascade Status
+app.get("/api/ai/status", (req, res) => {
+  res.json({
+    cascade: [
+      {
+        tier: 1,
+        provider: "Gemini",
+        configured: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== "dummy-key"),
+        description: "Primary Google GenAI Engine (gemini-3.7-flash, gemini-2.5-flash, gemini-flash-latest)",
+      },
+      {
+        tier: 2,
+        provider: "OpenRouter",
+        configured: Boolean(process.env.OPENROUTER_API_KEY),
+        description: "Secondary Multi-Model Fallback (OpenRouter chat completions)",
+      },
+      {
+        tier: 3,
+        provider: "Groq",
+        configured: Boolean(process.env.GROQ_API_KEY),
+        description: "Tertiary Ultra-Fast Fallback (Groq LPU Llama-3.3 / Llama-3.1)",
+      },
+      {
+        tier: 4,
+        provider: "Intelligent Heuristics",
+        configured: true,
+        description: "Built-in deterministic domain-aware curriculum generator",
+      },
+    ],
+  });
 });
 
 // Helper: infer domain and visual mode from topic or text
