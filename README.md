@@ -29,6 +29,7 @@
 | <div align="center">**Learn how the AI Teaching Experience is generated.** 👉</div> | <div align="center"><a href="#teaching-experience"><img src="https://img.shields.io/badge/🎥%20Teaching%20Experience-E11D48?style=for-the-badge" /></a></div> |
 | <div align="center">**View the technologies, frameworks, and programming languages used.** 👉</div> | <div align="center"><a href="#tech-stack"><img src="https://img.shields.io/badge/🛠️%20Tech%20Stack-0891B2?style=for-the-badge" /></a></div> |
 | <div align="center">**Understand AI models and third-party service responsibilities.** 👉</div> | <div align="center"><a href="#ai-models"><img src="https://img.shields.io/badge/🤖%20AI%20Models-9333EA?style=for-the-badge" /></a></div> |
+| <div align="center">**Explore multi-tier AI fallback: Gemini ➔ OpenRouter ➔ Groq.** 👉</div> | <div align="center"><a href="#ai-fallback"><img src="https://img.shields.io/badge/⚡%20AI%20Fallback%20Cascade-F59E0B?style=for-the-badge" /></a></div> |
 | <div align="center">**Understand how learner profiles personalize teaching.** 👉</div> | <div align="center"><a href="#personalization"><img src="https://img.shields.io/badge/🎯%20Personalization-0284C7?style=for-the-badge" /></a></div> |
 | <div align="center">**Explore the project's folder and file organization.** 👉</div> | <div align="center"><a href="#file-structure"><img src="https://img.shields.io/badge/📂%20File%20Structure-10B981?style=for-the-badge" /></a></div> |
 | <div align="center">**Follow the installation steps and local development setup.** 👉</div> | <div align="center"><a href="#installation"><img src="https://img.shields.io/badge/🚀%20Installation-F97316?style=for-the-badge" /></a></div> |
@@ -58,6 +59,16 @@ TeachAI departs from conventional static chat interfaces and pre-recorded videos
 $$\text{Understand} \longrightarrow \text{Plan} \longrightarrow \text{Explain} \longrightarrow \text{Demonstrate} \longrightarrow \text{Question} \longrightarrow \text{Evaluate} \longrightarrow \text{Adapt} \longrightarrow \text{Continue}$$
 
 ### 🌟 Core Capabilities
+- ⚡ **Multi-Tier AI Fallback Engine (Zero Downtime)**:
+  - **Tier 1 (Primary)**: Google Gemini (`gemini-3.7-flash`, `gemini-2.5-flash`, `gemini-flash-latest`, `gemini-3.1-flash-lite`) via `@google/genai` with exponential backoff on 503/429 quota spikes.
+  - **Tier 2 (Fallback)**: OpenRouter API (`google/gemini-2.0-flash-001`, `meta-llama/llama-3.3-70b-instruct`, `mistralai/mistral-small-24b-instruct-2501`) with custom model support (`OPENROUTER_MODEL`).
+  - **Tier 3 (Ultra-Fast Fallback)**: Groq LPU (`llama-3.3-70b-versatile`, `llama-3.1-8b-instant`) with 9-second timeout guards (`GROQ_MODEL`).
+  - **Tier 4 (Offline Fallback)**: Built-in deterministic pedagogical heuristics ensuring 100% system uptime without crashes.
+- 👤 **Seamless First-Time Onboarding & Persistent Identity**:
+  - Modal onboarding prompts for student name before their first session.
+  - Dual-layer persistence across browser `localStorage` and 365-day persistent cookie (`teachai_student_name`).
+  - Top navigation profile badge with student avatar initial and instant one-click name updating.
+  - Dynamic personalization: Personalized hero greeting, teacher welcome dialogue in the classroom, and student name printed on the mastery report.
 - 📂 **Multi-Format Document Ingestion**: Upload `.pdf`, `.doc`, `.docx`, `.ppt`, `.pptx`, and `.txt` course notes, textbooks, and slides with automated client and server-side text extraction and structured section chunking.
 - 💡 **Arbitrary Topic Engine**: Learn any subject from scratch (e.g., *"Basic Circuits & Ohm's Law"*, *"Newtonian Kinematics"*, *"Transformer Architectures"*) without requiring uploaded material.
 - 🎯 **Deep Student Profiling**:
@@ -66,7 +77,11 @@ $$\text{Understand} \longrightarrow \text{Plan} \longrightarrow \text{Explain} \
   - **Time Budgets**: 5m, 10m, 20m, 30m, 60m, or 7-Day Curriculum
   - **Pedagogical Styles**: Simple & Visual, Conceptual, Socratic, Examples First, Technical
   - **12 Supported Language Modes**: English, Hindi, Hinglish, Kannada, Tamil, Telugu, Bengali, Spanish, French, German, Japanese, and Mandarin.
-- 🗺️ **Automated Gemini Curriculum Planner**: Generates structured syllabi with module timelines, prerequisite mapping, key concepts, learning outcomes, and designated visual demonstration modes.
+- 🗺️ **Automated Curriculum Planner with Live In-Button Progress**:
+  - Generates structured syllabi with module timelines, prerequisite mapping, key concepts, and learning outcomes.
+  - Features a live 0% to 100% animated progress bar directly inside the "Generate Personalized Lesson" action button.
+- 🧭 **Responsive Navigation Quick-Switcher Ribbon**:
+  - Centered navigation ribbon with smooth touch-scrolling, mobile-optimized pill buttons, and responsive breakpoints across desktop, tablet, and mobile.
 - 🧑‍🏫 **Interactive AI Classroom ("Teacher Nova")**:
   - **Animated Teacher Avatar**: Reactive avatar with active speaking states, listening mode, and voice speed controls (`0.8x`, `1.0x`, `1.25x`, `1.5x`).
   - **Voice Narration & Live Subtitles**: Browser speech synthesis paired with live, synchronized subtitle scrolling.
@@ -128,11 +143,15 @@ Rather than delivering a static pre-recorded video or a basic talking-head anima
 
 | Layer | Technologies & Frameworks | Description |
 |:---|:---|:---|
-| **🤖 AI & LLM** | Google Gemini 3.7 Flash (`@google/genai`) | Curriculum planner, teacher agent, answer evaluator, misconception detector |
+| **🤖 AI & LLM (Tier 1)** | Google Gemini 3.7 Flash (`@google/genai`) | Primary curriculum planner, teacher agent, evaluator, misconception detector |
+| **⚡ Fallback AI (Tier 2)** | OpenRouter API (`fetch`) | Secondary multi-model fallback (`google/gemini-2.0-flash`, `llama-3.3-70b`) |
+| **🚀 Fast Fallback (Tier 3)**| Groq Cloud LPU (`fetch`) | Tertiary ultra-fast fallback (`llama-3.3-70b-versatile`, `llama-3.1-8b`) |
+| **🛡️ Fallback (Tier 4)** | Deterministic Pedagogical Heuristics | Zero-downtime offline fallback curriculum and visual board generator |
 | **🎨 Frontend** | React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons | Responsive SPA, interactive STEM simulators, dynamic SVG gauges |
-| **⚙️ Backend** | Node.js, Express.js, TypeScript, `serverless-http` | REST API routes, in-memory RAG retrieval engine, document processors |
+| **⚙️ Backend** | Node.js, Express.js, TypeScript, `serverless-http` | REST API routes, multi-tier AI cascade, in-memory RAG, document parser |
 | **🔊 Voice & Audio** | Web Speech API (`SpeechSynthesis`, `SpeechRecognition`) | Browser-native speech synthesis and voice transcription |
 | **📚 Retrieval (RAG)** | In-Memory Temporary Chunk Index | Token and semantic keyword retrieval with source document metadata |
+| **💾 Student Identity**| Dual-Storage (`localStorage` + 365d Cookie) | Persistent student name across sessions without server-side database |
 | **🚀 Hosting & Deploy** | Netlify Functions, Cloud Run, Docker | Serverless and containerized deployment options for flexible hosting |
 | **🗄️ Database / Auth** | ❌ **None** (Zero Database / Zero Auth Architecture) | Privacy-friendly in-memory temporary session lifecycle |
 
@@ -143,26 +162,92 @@ Rather than delivering a static pre-recorded video or a basic talking-head anima
 <a name="ai-models"></a>
 ## 🤖 AI Models & Third-Party Service Responsibilities
 
-### 1. Google Gemini (`gemini-3.7-flash` via `@google/genai`)
-Google Gemini powers the cognitive and pedagogical intelligence across the system:
+### 1. Google Gemini (`gemini-3.7-flash` via `@google/genai`) — Primary Engine (Tier 1)
+Google Gemini powers the primary cognitive and pedagogical intelligence across the system:
 - **Curriculum Planning (`/api/lesson/plan`)**: Synthesizes uploaded materials or topics into structured learning modules, time allocations, and prerequisite graphs.
 - **In-Class Teacher Agent (`/api/lesson/ask`)**: Formulates pedagogical answers to student questions, grounded in retrieved source document chunks.
 - **Answer Evaluation & Misconception Analysis (`/api/lesson/evaluate`)**: Evaluates student quiz selections, diagnoses underlying conceptual errors, and constructs adaptive remediation analogies.
+- **Resilience Cascade**: Cycles through `gemini-3.7-flash` ➔ `gemini-2.5-flash` ➔ `gemini-flash-latest` ➔ `gemini-3.1-flash-lite` with exponential jitter backoff on 503 high-demand / 429 quota codes.
 
-### 2. Browser Web Speech APIs
+### 2. OpenRouter API — Secondary Multi-Model Fallback (Tier 2)
+If Gemini experiences high load, quota limits, or network timeouts, requests automatically fail over to OpenRouter:
+- **Standard Endpoint**: `https://openrouter.ai/api/v1/chat/completions` with JSON schema structuring.
+- **Model Cascade**: Uses `OPENROUTER_MODEL` (configurable) or falls back through `google/gemini-2.0-flash-001`, `meta-llama/llama-3.3-70b-instruct`, and `mistralai/mistral-small-24b-instruct-2501`.
+- **12-Second Timeout Guard**: Ensures the UI never stalls even during provider latency spikes.
+
+### 3. Groq Cloud LPU — Tertiary Ultra-Fast Fallback (Tier 3)
+If both Gemini and OpenRouter are unavailable or unconfigured, requests instantly route to Groq's high-speed inference engine:
+- **Standard Endpoint**: `https://api.groq.com/openai/v1/chat/completions`.
+- **Model Cascade**: Uses `GROQ_MODEL` or falls back through `llama-3.3-70b-versatile` and `llama-3.1-8b-instant`.
+- **9-Second Timeout Guard**: Guarantees near-instant pedagogical generation.
+
+### 4. Browser Web Speech APIs
 - **`window.speechSynthesis`**: Converts generated teacher dialogue and subtitles into spoken narration in the client browser.
 - **`SpeechRecognition` / `webkitSpeechRecognition`**: Captures spoken student queries via microphone for hands-free Q&A.
 
-### 3. Third-Party Service Disclosure
+### 5. Third-Party Service Disclosure
 - **Google Gen AI SDK (`@google/genai`)**: Official SDK communicating with Google Gemini API servers.
+- **OpenRouter API**: Cloud API routing to open and proprietary LLMs.
+- **Groq Cloud API**: High-throughput LPU inference API.
 - **Lucide Icons (`lucide-react`)**: Open-source vector iconography.
+
+---
+
+<a name="ai-fallback"></a>
+## ⚡ Resilient Multi-Provider AI Fallback Pipeline
+
+To ensure absolute **zero downtime** and uninterrupted classroom sessions during hackathon evaluations, TeachAI implements an enterprise-grade multi-tier fallback architecture:
+
+```
+                          ┌───────────────────────────┐
+                          │    Student / API Request  │
+                          └─────────────┬─────────────┘
+                                        │
+                                        ▼
+                      ┌───────────────────────────────────┐
+                      │      TIER 1: Google Gemini        │
+                      │  gemini-3.7-flash ➔ gemini-2.5    │
+                      │  (Timeout: 12s | Retry on 503)    │
+                      └─────────────────┬─────────────────┘
+                                        │ (If failed / 429 / 503)
+                                        ▼
+                      ┌───────────────────────────────────┐
+                      │      TIER 2: OpenRouter API       │
+                      │  gemini-2.0-flash ➔ llama-3.3-70b │
+                      │  (Timeout: 12s | JSON mode)       │
+                      └─────────────────┬─────────────────┘
+                                        │ (If failed / unconfigured)
+                                        ▼
+                      ┌───────────────────────────────────┐
+                      │       TIER 3: Groq Cloud LPU      │
+                      │  llama-3.3-70b ➔ llama-3.1-8b     │
+                      │  (Timeout: 9s | High throughput)  │
+                      └─────────────────┬─────────────────┘
+                                        │ (If all APIs unavailable)
+                                        ▼
+                      ┌───────────────────────────────────┐
+                      │  TIER 4: Deterministic Heuristics │
+                      │  Domain-aware syllabus generator  │
+                      │  (100% Offline | Zero Crash)      │
+                      └───────────────────────────────────┘
+```
+
+- **Health & Status Telemetry**:
+  - `GET /api/ai/status`: Inspects active provider configuration and priority order.
+  - `GET /api/health`: Exposes boolean status flags (`aiProviders: { gemini, openrouter, groq }`).
 
 ---
 
 <a name="personalization"></a>
 ## 🎯 Personalization Engine
 
-The learner profile is captured during setup and maintained within the active session state.
+The learner profile is captured during setup and maintained within both the active session and client storage.
+
+### 👤 Student Identity & Dual-Storage Persistence:
+- **First-Session Onboarding**: A focused name entry modal (`UserNameModal.tsx`) welcomes new learners.
+- **Dual-Storage Strategy**: Student names are synchronized across browser `localStorage` and a 365-day cookie (`teachai_student_name`) via `userStorage.ts`. This ensures student identity persists across browser reloads without requiring server accounts or external databases.
+- **Universal TopNav Profile**: Interactive profile badge showing avatar initial with instant name updating.
+- **Dynamic Greeting & Feedback**: Personalized welcome in the classroom, conversational responses from Teacher Nova, and personalized mastery certificate.
 
 ### Configured Parameters:
 - **Proficiency Level**: Beginner, Intermediate, Advanced
@@ -193,23 +278,27 @@ teachai/
 ├── 📁 src/
 │   ├── 📁 components/
 │   │   ├── 📄 HomeScreen.tsx          # Landing view with topic input & file dropzone
-│   │   ├── 📄 PersonalizeScreen.tsx   # Learner configuration (level, language, time, style)
+│   │   ├── 📄 PersonalizeScreen.tsx   # Learner configuration with live loading progress bar
 │   │   ├── 📄 PlanningScreen.tsx      # Generated AI curriculum syllabus & timeline
 │   │   ├── 📄 ClassroomScreen.tsx     # Live AI avatar, voice narration & visual lab board
 │   │   ├── 📄 QuestionScreen.tsx      # Assessment engine with instant misconception triggers
 │   │   ├── 📄 AdaptiveScreen.tsx      # Water-pipe valve simulation & remediation breakdown
 │   │   ├── 📄 ResultsScreen.tsx       # Calculated mastery scorecard & strength diagnostics
 │   │   ├── 📄 LearningPathScreen.tsx  # Dynamic adaptive milestone curriculum roadmap
-│   │   ├── 📄 TopNav.tsx              # Universal application header
+│   │   ├── 📄 TopNav.tsx              # Universal header with student profile avatar badge
+│   │   ├── 📄 UserNameModal.tsx       # Student onboarding & persistent name editor modal
 │   │   ├── 📄 Sidebar.tsx             # Collapsible navigation drawer
 │   │   └── 📄 MobileBottomNav.tsx     # Responsive mobile bottom navigation bar
 │   ├── 📁 data/
 │   │   └── 📄 mockData.ts             # Initial subject templates & fallback pedagogical datasets
-│   ├── 📄 App.tsx                     # Main application state & screen router
+│   ├── 📁 utils/
+│   │   ├── 📄 userStorage.ts          # Dual-persistence storage (localStorage + 365d cookie)
+│   │   └── 📄 language.ts             # Multilingual translations & language metadata
+│   ├── 📄 App.tsx                     # Main application state, quick-switcher ribbon & screen router
 │   ├── 📄 main.tsx                    # React DOM entry point
 │   ├── 📄 types.ts                    # TypeScript definitions (Sessions, Plans, RAG, Assessments)
 │   └── 📄 index.css                   # Global Tailwind CSS directives
-├── 📄 server.ts                       # Express backend (Gemini API, RAG search, TTS, Sessions)
+├── 📄 server.ts                       # Express backend (Multi-Tier AI Cascade, RAG, TTS, Sessions)
 ├── 📄 netlify.toml                    # Netlify production build & redirect configuration
 ├── 📄 package.json                    # Project dependencies, scripts & metadata
 ├── 📄 tsconfig.json                   # TypeScript compiler configuration
@@ -228,7 +317,9 @@ teachai/
 ### 1️⃣ Prerequisites
 - **Node.js**: Version `18.0.0` or higher
 - **npm** or **yarn**
-- *(Optional)* A **Google Gemini API Key** from [Google AI Studio](https://aistudio.google.com/)
+- A **Google Gemini API Key** from [Google AI Studio](https://aistudio.google.com/) *(Primary)*
+- *(Optional)* An **OpenRouter API Key** from [OpenRouter](https://openrouter.ai/) *(Tier 2 Fallback)*
+- *(Optional)* A **Groq API Key** from [Groq Cloud](https://console.groq.com/) *(Tier 3 Fast Fallback)*
 
 ### 2️⃣ Clone & Install Dependencies
 ```bash
@@ -243,13 +334,21 @@ npm install
 ### 3️⃣ Configure Environment Variables
 Create a `.env` file in the project root:
 ```env
-# Google Gemini API Key for AI Intelligence
+# Google Gemini API Key (Tier 1 Primary AI Engine)
 GEMINI_API_KEY=your_gemini_api_key_here
+
+# OpenRouter API Key & Custom Model (Tier 2 Fallback)
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+OPENROUTER_MODEL=google/gemini-2.0-flash-001
+
+# Groq API Key & Custom Model (Tier 3 Fast Fallback)
+GROQ_API_KEY=your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
 
 # (Optional) Port configuration (defaults to 3000)
 PORT=3000
 ```
-> 💡 *Note on API Keys: If `GEMINI_API_KEY` is unavailable, development fallback data may be used for UI testing. Full AI lesson generation, grounded question answering, and adaptive evaluation require a valid Gemini API key.*
+> 💡 *Multi-Tier AI Resilience: If Gemini encounters a 503 high-demand spike or quota limits, TeachAI automatically routes requests to OpenRouter, then to Groq, and finally to intelligent domain heuristics. The app remains 100% operational under all conditions.*
 
 ### 4️⃣ Start Development Server
 ```bash
@@ -424,6 +523,10 @@ TeachAI operates under a privacy-first, zero-database architecture. Learner stat
 
 | Hackathon Requirement | TeachAI Implementation | Verification Component |
 |:---|:---|:---|
+| **Zero Downtime AI Resilience** | Multi-tier cascade: Gemini ➔ OpenRouter ➔ Groq ➔ Offline Heuristics | `server.ts`, `/api/ai/status` |
+| **Persistent Student Identity** | First-session modal onboarding with Dual-Storage (localStorage + 365d cookie) | `UserNameModal.tsx`, `userStorage.ts` |
+| **Interactive Progress Feedback** | Live 0% to 100% in-button animated progress bar during lesson planning | `PersonalizeScreen.tsx` |
+| **Responsive Quick Navigation** | Mobile/tablet/desktop centered navigation switcher ribbon | `App.tsx` |
 | **Uploaded Material Support** | Multi-format parser (`.pdf`, `.doc`, `.docx`, `.ppt`, `.pptx`, `.txt`) | `HomeScreen.tsx`, `/api/upload` |
 | **Arbitrary Topic Learning** | Learn any concept from scratch via text prompt | `HomeScreen.tsx`, `/api/lesson/plan` |
 | **Personalized Lesson Generation** | Structured curriculum generated by Gemini 3.7 Flash | `PlanningScreen.tsx`, `/api/lesson/plan` |
@@ -596,6 +699,55 @@ Evaluates quiz answers, detects underlying misconceptions, and returns adaptive 
       "explanation": "Initial I = 12/4 = 3A. New I = 12/8 = 1.5A. Current halves when resistance doubles."
     }
   }
+}
+```
+
+### 6. `GET /api/health`
+Returns system heartbeat and configured AI provider status.
+```json
+// Response
+{
+  "status": "ok",
+  "timestamp": "2026-03-03T15:00:00.000Z",
+  "aiProviders": {
+    "gemini": true,
+    "openrouter": true,
+    "groq": false
+  }
+}
+```
+
+### 7. `GET /api/ai/status`
+Exposes the active multi-tier AI fallback cascade and model hierarchy.
+```json
+// Response
+{
+  "cascade": [
+    {
+      "tier": 1,
+      "provider": "Gemini",
+      "configured": true,
+      "description": "Primary Google GenAI Engine (gemini-3.7-flash, gemini-2.5-flash, gemini-flash-latest)"
+    },
+    {
+      "tier": 2,
+      "provider": "OpenRouter",
+      "configured": true,
+      "description": "Secondary Multi-Model Fallback (OpenRouter chat completions)"
+    },
+    {
+      "tier": 3,
+      "provider": "Groq",
+      "configured": false,
+      "description": "Tertiary Ultra-Fast Fallback (Groq LPU Llama-3.3 / Llama-3.1)"
+    },
+    {
+      "tier": 4,
+      "provider": "Intelligent Heuristics",
+      "configured": true,
+      "description": "Built-in deterministic domain-aware curriculum generator"
+    }
+  ]
 }
 ```
 
