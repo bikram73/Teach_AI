@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { LessonPlan, PersonalizeFormState, ScreenType } from '../types';
 
 interface PersonalizeScreenProps {
@@ -27,7 +27,17 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [loadingPlan, setLoadingPlan] = useState(false);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+    };
+  }, []);
 
   // Supported languages according to PRD section 9 (Indian & International languages)
   const languages = [
@@ -103,6 +113,19 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
 
   const handleSubmit = async () => {
     setLoadingPlan(true);
+    setLoadingProgress(15);
+
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+    progressIntervalRef.current = setInterval(() => {
+      setLoadingProgress((prev) => {
+        if (prev >= 92) return prev;
+        const inc = prev < 40 ? 12 : prev < 70 ? 8 : 4;
+        return Math.min(prev + inc, 92);
+      });
+    }, 250);
+
     const cleanUploadName = formData.uploadedFileName
       ? formData.uploadedFileName.replace(/\.[^/.]+$/, '').replace(/[_-]/g, ' ')
       : 'Uploaded Document';
@@ -135,8 +158,14 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
         onSetFormState(finalForm);
       }
     } finally {
-      setLoadingPlan(false);
-      onNavigate('planning');
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
+      setLoadingProgress(100);
+      setTimeout(() => {
+        setLoadingPlan(false);
+        onNavigate('planning');
+      }, 400);
     }
   };
 
@@ -529,12 +558,43 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
           <button
             onClick={handleSubmit}
             disabled={loadingPlan}
-            className="w-full sm:w-auto bg-gradient-to-r from-[#4648d4] to-[#6063ee] text-white font-semibold text-sm px-8 py-3.5 rounded-xl hover:scale-[0.98] transition-transform shadow-md ai-glow flex items-center justify-center gap-2 cursor-pointer"
+            className={`relative overflow-hidden w-full sm:w-auto text-white font-semibold text-sm px-8 py-3.5 rounded-xl transition-all shadow-md flex flex-col items-center justify-center cursor-pointer min-w-[280px] ${
+              loadingPlan
+                ? 'bg-[#372abf] cursor-wait opacity-95 ring-2 ring-[#4648d4]/50'
+                : 'bg-gradient-to-r from-[#4648d4] to-[#6063ee] hover:scale-[0.98] ai-glow'
+            }`}
           >
-            <span className="material-symbols-outlined text-[20px]">
-              {loadingPlan ? 'sync' : 'auto_awesome'}
-            </span>
-            {loadingPlan ? 'Generating Lesson Plan with Gemini...' : 'Generate Personalized Lesson'}
+            {/* Top row with icon & status text */}
+            <div className="flex items-center justify-center gap-2 z-10">
+              <span className={`material-symbols-outlined text-[20px] ${loadingPlan ? 'animate-spin text-emerald-300' : ''}`}>
+                {loadingPlan ? 'progress_activity' : 'auto_awesome'}
+              </span>
+              <span>
+                {loadingPlan
+                  ? `Generating Lesson Plan... ${Math.round(loadingProgress)}%`
+                  : 'Generate Personalized Lesson'}
+              </span>
+            </div>
+
+            {/* In-button prominent loading bar track */}
+            {loadingPlan && (
+              <div className="w-full max-w-[240px] h-1.5 bg-black/30 rounded-full overflow-hidden z-10 mt-1.5 p-[1px]">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-400 via-teal-200 to-white rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(52,211,153,0.9)]"
+                  style={{ width: `${Math.min(100, Math.max(6, loadingProgress))}%` }}
+                />
+              </div>
+            )}
+
+            {/* Edge-to-edge bottom loading bar track */}
+            {loadingPlan && (
+              <div className="absolute inset-x-0 bottom-0 h-1 bg-white/20 overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-emerald-300 via-white to-indigo-200 transition-all duration-300 ease-out shadow-[0_0_6px_rgba(255,255,255,0.8)]"
+                  style={{ width: `${Math.min(100, Math.max(6, loadingProgress))}%` }}
+                />
+              </div>
+            )}
           </button>
         </div>
       </main>
