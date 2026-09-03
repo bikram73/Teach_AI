@@ -32,6 +32,7 @@ export default function App() {
     teachingStyle: 'conceptual',
   });
   const [lessonPlan, setLessonPlan] = useState<LessonPlan | undefined>(undefined);
+  const [activeLessonIndex, setActiveLessonIndex] = useState<number>(0);
   const [assessmentSummary, setAssessmentSummary] = useState<UserAssessmentSummary | undefined>(undefined);
 
   // Sync stored user name on startup
@@ -161,6 +162,12 @@ export default function App() {
             onNavigate={handleProtectedNavigate}
             formState={formState}
             lessonPlan={lessonPlan}
+            activeSectionIndex={activeLessonIndex}
+            onSelectSection={setActiveLessonIndex}
+            onStartLesson={(idx) => {
+              setActiveLessonIndex(idx);
+              handleProtectedNavigate('classroom');
+            }}
           />
         )}
         {currentScreen === 'classroom' && (
@@ -168,6 +175,9 @@ export default function App() {
             onNavigate={handleProtectedNavigate}
             formState={formState}
             userName={userName}
+            lessonPlan={lessonPlan}
+            initialSceneIndex={activeLessonIndex}
+            onSelectScene={setActiveLessonIndex}
           />
         )}
         {currentScreen === 'question' && (
@@ -178,6 +188,8 @@ export default function App() {
             documentText={formState.uploadedFileContent}
             userLevel={formState.currentLevel}
             userLanguage={formState.language}
+            teachingStyle={formState.teachingStyle}
+            lessonPlan={lessonPlan}
           />
         )}
         {currentScreen === 'adaptive' && (

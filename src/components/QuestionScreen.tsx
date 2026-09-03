@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ASSETS } from '../data/mockData';
-import { AssessmentItem, ScreenType, UserAssessmentSummary } from '../types';
+import { AssessmentItem, LessonPlan, ScreenType, UserAssessmentSummary } from '../types';
 import { Sidebar } from './Sidebar';
+import { buildDynamicLessonPlan, buildDynamicQuestions } from '../utils/lessonGenerator';
 
 interface QuestionScreenProps {
   onNavigate: (screen: ScreenType) => void;
@@ -10,6 +11,8 @@ interface QuestionScreenProps {
   documentText?: string;
   userLevel?: string;
   userLanguage?: string;
+  teachingStyle?: string;
+  lessonPlan?: LessonPlan;
 }
 
 export const QuestionScreen: React.FC<QuestionScreenProps> = ({
@@ -19,10 +22,32 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
   documentText,
   userLevel = "Intermediate",
   userLanguage = "English",
+  teachingStyle = "Conceptual",
+  lessonPlan,
 }) => {
+  const effectivePlan = lessonPlan || buildDynamicLessonPlan({
+    topicText: topicTitle,
+    currentLevel: userLevel as any,
+    language: userLanguage,
+    teachingStyle: teachingStyle as any,
+    uploadedFileContent: documentText,
+  });
+
+  const fallbackQuestions = buildDynamicQuestions(
+    effectivePlan,
+    topicTitle,
+    userLevel,
+    userLanguage,
+    documentText
+  );
+
   // Generate subject-aware fallback questions
-  const getSubjectAwareQuestions = (topic: string): AssessmentItem[] => {
-    const lower = topic.toLowerCase();
+  const getSubjectAwareQuestions = (_topic: string): AssessmentItem[] => {
+    return fallbackQuestions;
+  };
+  const _oldQuestions = () => {
+    const topic = topicTitle;
+    const lower = topicTitle.toLowerCase();
     if (lower.includes('python') || lower.includes('code') || lower.includes('programming') || lower.includes('algorithm')) {
       return [
         {
@@ -299,7 +324,7 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
     ];
   };
 
-  const [questions, setQuestions] = useState<AssessmentItem[]>(() => getSubjectAwareQuestions(topicTitle));
+  const [questions, setQuestions] = useState<AssessmentItem[]>(fallbackQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<number, 'A' | 'B' | 'C' | 'D'>>({});
   const [submittedQuestions, setSubmittedQuestions] = useState<Record<number, boolean>>({});
@@ -319,7 +344,9 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
             topic: topicTitle,
             level: userLevel,
             language: userLanguage,
+            teachingStyle,
             documentText,
+            lessonPlan: effectivePlan,
           }),
         });
         if (res.ok) {

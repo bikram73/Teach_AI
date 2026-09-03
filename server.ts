@@ -823,13 +823,17 @@ Follow this JSON schema strictly:
 // Dynamic Classroom Scenes Agent (Subject-Aware Live Narration & Multi-Modal Boards)
 app.post("/api/lesson/scenes", async (req, res) => {
   try {
-    const { topic, level, language, documentText, lessonPlan } = req.body;
+    const { topic, level, language, documentText, lessonPlan, teachingStyle } = req.body;
     const currentTopic = topic || "Foundational Topic";
     const lang = language || "English";
     const userLevel = level || "Intermediate";
+    const style = teachingStyle || "conceptual";
+
+    const hasPlannedSections = lessonPlan && Array.isArray(lessonPlan.sections) && lessonPlan.sections.length > 0;
 
     const prompt = `You are TeachAI's Masterclass Lesson Director & Socratic Professor.
 Your goal is to teach "${currentTopic}" deeply, clearly, and engagingly to an ${userLevel} student in ${lang}.
+Teaching Style: "${style}" (e.g. conceptual analogies, step-by-step logic, practical demonstrations).
 
 Student Language: "${lang}"
 Level: "${userLevel}"
@@ -837,8 +841,31 @@ ${documentText ? `Document Context:\n${documentText.slice(0, 3000)}\n` : ""}
 
 ${getStrictLanguageRule(lang)}
 
+${
+  hasPlannedSections
+    ? `MANDATORY LESSON STRUCTURE FROM PLANNED CURRICULUM:
+The student's customized lesson plan contains ${lessonPlan.sections.length} sections:
+${lessonPlan.sections
+  .map(
+    (sec: any, idx: number) => `Scene ${idx + 1}:
+- Title: "${sec.title}"
+- Key Concept: "${sec.keyConcept}"
+- Visual Type: "${sec.visualType || "diagram"}"
+- Summary: "${sec.summary}"
+- Duration: "${sec.duration}"`
+  )
+  .join("\n\n")}
+
+CRITICAL REQUIREMENT: You MUST generate EXACTLY ${lessonPlan.sections.length} scenes, one matching each planned section above in order.`
+    : `Generate 4-5 progressive scenes:
+- Scene 1: Intuition, Motivation & Real-World Analogy
+- Scene 2: Core Mechanisms, Rules & Components
+- Scene 3: Step-by-Step Practical Demonstration / Worked Example
+- Scene 4: Critical Edge Cases, Common Mistakes & Mastery Synthesis`
+}
+
 CRITICAL TEACHING QUALITY REQUIREMENTS:
-1. "teacherScript" MUST be a rich, thorough, warm masterclass lecture (4-6 complete, substantive sentences). Do NOT provide shallow 1-line summaries. The teacher should:
+1. "teacherScript" MUST be a rich, thorough, warm masterclass lecture (4-6 complete, substantive sentences in ${lang}). Do NOT provide shallow 1-line summaries. The teacher should:
    - Introduce the core intuition and why it matters in the real world.
    - Explain the underlying mechanics and principles step-by-step.
    - Reference the visual aid on the whiteboard.
@@ -849,12 +876,6 @@ CRITICAL TEACHING QUALITY REQUIREMENTS:
 5. "microQuiz": An interactive 1-question check for this scene with 3-4 choices, correctIndex (0-based), and instructional explanation.
 6. "commonMistake": A frequent beginner trap/misconception and the correct way to think about it.
 7. "visualType": Select the most appropriate mode: "code" (programming), "diagram" (biology/systems/structures), "timeline" (history/events/chronology), "formula" (math/physics/economics), or "circuit" (electrical circuits).
-
-Generate 4-5 progressive scenes:
-- Scene 1: Intuition, Motivation & Real-World Analogy
-- Scene 2: Core Mechanisms, Rules & Components
-- Scene 3: Step-by-Step Practical Demonstration / Worked Example
-- Scene 4: Critical Edge Cases, Common Mistakes & Mastery Synthesis
 
 Output JSON format strictly:
 {
@@ -919,7 +940,101 @@ Output JSON format strictly:
     const meta = inferSubjectMetadata(currentTopic);
     let fallbackScenes: any[] = [];
 
-    if (meta.visualType === "code") {
+    // If a custom lesson plan was provided, dynamically generate matching scenes for every section
+    if (hasPlannedSections) {
+      fallbackScenes = lessonPlan.sections.map((sec: any, idx: number) => {
+        const vType = sec.visualType || meta.visualType;
+        const isCode = vType === "code";
+        const isTimeline = vType === "timeline";
+        const isFormula = vType === "formula";
+        const isCircuit = vType === "circuit";
+
+        return {
+          id: idx + 1,
+          title: sec.title,
+          concept: sec.keyConcept,
+          teacherScript: `Welcome to Lesson ${idx + 1}: "${sec.title}". In this module, we explore the core mechanics of ${sec.keyConcept}. ${sec.summary} Notice how our interactive whiteboard demonstrates these principles in real-time. Use the controls to test your intuition.`,
+          subtitles: `Lesson ${idx + 1}: ${sec.title}. Exploring ${sec.keyConcept} at the ${userLevel} level.`,
+          visualType: vType,
+          teacherPose: idx % 2 === 0 ? "explaining" : "demonstrating",
+          analogy: `Think of ${sec.keyConcept} as a balanced regulatory feedback loop: altering any input immediately shifts equilibrium across the whole system.`,
+          keyPoints: [
+            `${sec.keyConcept} establishes the governing dynamics in this lesson`,
+            `At the ${userLevel} tier, testing boundary conditions solidifies understanding`,
+            `Verify the cause-and-effect relationship on your interactive whiteboard`,
+          ],
+          stepBreakdown: [
+            { stepNumber: 1, title: "Input Configuration", description: `Initialize baseline constraints for ${sec.keyConcept}.`, example: "State initialized" },
+            { stepNumber: 2, title: "Transformation & Flow", description: `Observe state transitions and operational throughput.`, example: "Active processing" },
+            { stepNumber: 3, title: "Verification & Equilibrium", description: `Confirm outcomes adhere to governing rules.`, example: "Equilibrium verified" },
+          ],
+          microQuiz: {
+            question: `In "${sec.title}", what is the primary role of ${sec.keyConcept}?`,
+            options: [
+              "It governs systematic throughput and provides predictable cause-and-effect",
+              "It has zero functional influence on the system",
+              "It permanently shuts down all operations randomly",
+            ],
+            correctIndex: 0,
+            explanation: `Understanding ${sec.keyConcept} enables precise prediction and control over system behavior.`,
+          },
+          commonMistake: {
+            misconception: `Viewing ${sec.keyConcept} in isolation rather than within its broader system context.`,
+            correction: `Always evaluate parameters in coordination with neighboring inputs and constraints.`,
+          },
+          ...(isCode
+            ? {
+                codeSnippet: `# Lesson ${idx + 1}: ${sec.title}\n# Topic: ${currentTopic}\n\ndef process_${sec.keyConcept.toLowerCase().replace(/[^a-z0-9]/g, "_")}(data):\n    return [item * 2 for item in data]\n\nresult = process_${sec.keyConcept.toLowerCase().replace(/[^a-z0-9]/g, "_")}([5, 10, 15, 20])\nprint("Computed Result:", result)`,
+                codeLanguage: "python",
+              }
+            : {}),
+          ...(isTimeline
+            ? {
+                timelineEvents: [
+                  { yearOrStep: "Stage 1", title: "Precursor Foundations", desc: `Initial conditions leading to ${sec.keyConcept}.`, impact: "Foundational baseline" },
+                  { yearOrStep: "Stage 2", title: "Catalytic Transformation", desc: `The decisive transition defining "${sec.title}".`, impact: "Strategic momentum" },
+                  { yearOrStep: "Stage 3", title: "Systemic Integration", desc: `Consolidation of changes and lasting impact.`, impact: "Modern precedent" },
+                ],
+              }
+            : {}),
+          ...(isFormula
+            ? {
+                formulaData: {
+                  formula: meta.subject.includes("Math") ? "f'(x) = \\lim_{h \\to 0} \\frac{f(x+h) - f(x)}{h}" : "F = m \\times a",
+                  description: `Governing Equation for ${sec.keyConcept}`,
+                  variables: [
+                    { name: "Primary Variable (x)", symbol: "x", min: 1, max: 20, current: 5, unit: "", step: 1 },
+                    { name: "Rate Constant (k)", symbol: "k", min: 0.1, max: 5, current: 1, unit: "", step: 0.1 },
+                  ],
+                },
+              }
+            : {}),
+          ...(isCircuit
+            ? {
+                formulaData: {
+                  formula: "I = V / R",
+                  description: "Ohm's Law: Current = Voltage / Resistance",
+                  variables: [
+                    { name: "Voltage (V)", symbol: "V", min: 1, max: 48, current: 12, unit: "V", step: 1 },
+                    { name: "Resistance (R)", symbol: "R", min: 1, max: 30, current: 6, unit: "Ω", step: 1 },
+                  ],
+                },
+              }
+            : {}),
+          ...(!isCode && !isTimeline && !isFormula && !isCircuit
+            ? {
+                diagramData: {
+                  nodes: [
+                    { id: "n1", label: `Core Input: ${sec.keyConcept}`, desc: "Initial state", category: "Input" },
+                    { id: "n2", label: "Transformation Mechanism", desc: "Processes inputs", category: "Mechanism" },
+                    { id: "n3", label: "Target Equilibrium Output", desc: "Verified result", category: "Output" },
+                  ],
+                },
+              }
+            : {}),
+        };
+      });
+    } else if (meta.visualType === "code") {
       fallbackScenes = [
         {
           id: 1,
@@ -1427,11 +1542,25 @@ Output JSON format strictly:
       }
     }
 
-    // Dynamic Heuristic Fallback Questions
+    // Dynamic Heuristic Fallback Questions grounded directly in user inputs / lessonPlan
     const meta = inferSubjectMetadata(currentTopic);
     let fallbackQuestions: any[] = [];
 
-    if (meta.visualType === "code") {
+    if (lessonPlan && Array.isArray(lessonPlan.sections) && lessonPlan.sections.length > 0) {
+      fallbackQuestions = lessonPlan.sections.map((sec: any, idx: number) => ({
+        id: `q${idx + 1}`,
+        concept: sec.keyConcept || sec.title,
+        question: `In "${sec.title}", what is the primary role of ${sec.keyConcept}?`,
+        options: [
+          { key: "A", text: `It acts as the core governing mechanism for ${sec.keyConcept.toLowerCase()}` },
+          { key: "B", text: "It overrides and eliminates all other system components" },
+          { key: "C", text: "It randomly resets parameters without evaluation" },
+          { key: "D", text: `It has zero functional influence on ${currentTopic}` },
+        ],
+        correctAnswer: "A",
+        explanation: `In this module on ${currentTopic}, ${sec.keyConcept} establishes the fundamental operational dynamics.`,
+      }));
+    } else if (meta.visualType === "code") {
       fallbackQuestions = [
         {
           id: "q1",

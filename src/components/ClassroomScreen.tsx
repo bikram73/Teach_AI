@@ -1,15 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { ASSETS } from '../data/mockData';
-import { ClassroomScene, PersonalizeFormState, ScreenType, VisualMode } from '../types';
+import { ClassroomScene, LessonPlan, PersonalizeFormState, ScreenType, VisualMode } from '../types';
 import { getLanguageBCP47, getBestVoice, isPureEnglish } from '../utils/language';
+import { buildDynamicLessonPlan, buildDynamicScenesFromPlan } from '../utils/lessonGenerator';
 
 interface ClassroomScreenProps {
   onNavigate: (screen: ScreenType) => void;
   formState?: PersonalizeFormState;
   userName?: string | null;
+  lessonPlan?: LessonPlan;
+  initialSceneIndex?: number;
+  onSelectScene?: (index: number) => void;
 }
 
-export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, formState, userName }) => {
+export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
+  onNavigate,
+  formState,
+  userName,
+  lessonPlan,
+  initialSceneIndex = 0,
+  onSelectScene,
+}) => {
   const currentTopic = formState?.topicText || (formState?.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Subject') : "Foundational Topic");
   
   // Detect primary visual mode based on topic
@@ -22,7 +33,11 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
     return 'formula';
   };
 
-  const initialMode = getInitialVisualMode(currentTopic);
+  // Unified dynamic lesson plan and scenes generated strictly from user inputs
+  const effectivePlan = lessonPlan || buildDynamicLessonPlan(formState);
+  const initialScenes = buildDynamicScenesFromPlan(effectivePlan, formState);
+
+  const initialMode: VisualMode = initialScenes[0]?.visualType || getInitialVisualMode(currentTopic);
 
   // Dynamic Subject-Aware Fallback Scenes with deep pedagogical masterclass content
   const getSubjectFallbackScenes = (topic: string): ClassroomScene[] => {
@@ -351,8 +366,8 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
     }
   };
 
-  const [scenes, setScenes] = useState<ClassroomScene[]>(() => getSubjectFallbackScenes(currentTopic));
-  const [currentSceneIndex, setCurrentSceneIndex] = useState(0);
+  const [scenes, setScenes] = useState<ClassroomScene[]>(initialScenes);
+  const [currentSceneIndex, setCurrentSceneIndex] = useState<number>(initialSceneIndex ?? 0);
   const [isPlaying, setIsPlaying] = useState(true);
   const [speed, setSpeed] = useState<'0.8x' | '1.0x' | '1.25x' | '1.5x'>('1.0x');
   const [isMuted, setIsMuted] = useState(false);
@@ -409,18 +424,21 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
             topic: currentTopic,
             level: formState?.currentLevel || 'Intermediate',
             language: formState?.language || 'English',
+            teachingStyle: formState?.teachingStyle || 'Conceptual',
             documentText: formState?.uploadedFileContent,
+            lessonPlan: effectivePlan,
           }),
         });
         if (res.ok) {
           const data = await res.json();
           if (isMounted && data.scenes && data.scenes.length > 0) {
             setScenes(data.scenes);
-            if (data.scenes[0]?.codeSnippet) {
-              setCodeSnippet(data.scenes[0].codeSnippet);
+            const target = data.scenes[currentSceneIndex] || data.scenes[0];
+            if (target?.codeSnippet) {
+              setCodeSnippet(target.codeSnippet);
             }
-            if (data.scenes[0]?.visualType) {
-              setActiveBoardTab(data.scenes[0].visualType);
+            if (target?.visualType) {
+              setActiveBoardTab(target.visualType);
             }
           }
         }
@@ -477,10 +495,24 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
     setSpeed(speeds[nextIdx]);
   };
 
+  const handleSelectScene = (index: number) => {
+    if (index >= 0 && index < scenes.length) {
+      setCurrentSceneIndex(index);
+      if (onSelectScene) onSelectScene(index);
+      if (scenes[index]?.visualType) {
+        setActiveBoardTab(scenes[index].visualType);
+      }
+      if (scenes[index]?.codeSnippet) {
+        setCodeSnippet(scenes[index].codeSnippet);
+      }
+    }
+  };
+
   const handleNextScene = () => {
     if (currentSceneIndex < scenes.length - 1) {
       const nextIdx = currentSceneIndex + 1;
       setCurrentSceneIndex(nextIdx);
+      if (onSelectScene) onSelectScene(nextIdx);
       if (scenes[nextIdx]?.visualType) {
         setActiveBoardTab(scenes[nextIdx].visualType);
       }
@@ -496,6 +528,7 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
     if (currentSceneIndex > 0) {
       const prevIdx = currentSceneIndex - 1;
       setCurrentSceneIndex(prevIdx);
+      if (onSelectScene) onSelectScene(prevIdx);
       if (scenes[prevIdx]?.visualType) {
         setActiveBoardTab(scenes[prevIdx].visualType);
       }
@@ -712,6 +745,65 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({ onNavigate, fo
           </button>
         </div>
       </header>
+
+      {/* Dynamic Lesson Navigation Ribbon */}
+      <div className="w-full bg-[#f4f5fc] border-b border-[#c7c4d7]/60 px-4 md:px-8 py-2.5 flex items-center justify-between gap-4 overflow-x-auto shadow-xs">
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-[11px] font-bold text-[#4648d4] uppercase tracking-wider flex items-center gap-1">
+            <span className="material-symbols-outlined text-[16px]">menu_book</span>
+            Lessons
+          </span>
+          <span className="text-[11px] text-[#464554] hidden sm:inline font-medium">
+            ({scenes.length} modules)
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2 overflow-x-auto py-0.5">
+          {scenes.map((scene, idx) => {
+            const isActive = currentSceneIndex === idx;
+            return (
+              <button
+                key={scene.id || idx}
+                onClick={() => handleSelectScene(idx)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer shrink-0 ${
+                  isActive
+                    ? 'bg-[#4648d4] text-white shadow-sm ring-2 ring-[#4648d4]/30'
+                    : 'bg-white text-[#464554] hover:text-[#131b2e] hover:bg-white border border-[#c7c4d7]/70'
+                }`}
+                title={scene.title}
+              >
+                <span
+                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
+                    isActive ? 'bg-white text-[#4648d4]' : 'bg-[#eff1ff] text-[#4648d4]'
+                  }`}
+                >
+                  {idx + 1}
+                </span>
+                <span className="truncate max-w-[140px] sm:max-w-[200px]">{scene.title}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            onClick={handlePrevScene}
+            disabled={currentSceneIndex === 0}
+            className="w-7 h-7 rounded-lg bg-white border border-[#c7c4d7]/70 flex items-center justify-center text-[#464554] disabled:opacity-30 hover:bg-[#eff1ff] cursor-pointer"
+            title="Previous Lesson"
+          >
+            <span className="material-symbols-outlined text-[18px]">chevron_left</span>
+          </button>
+          <button
+            onClick={handleNextScene}
+            disabled={currentSceneIndex === scenes.length - 1}
+            className="w-7 h-7 rounded-lg bg-white border border-[#c7c4d7]/70 flex items-center justify-center text-[#464554] disabled:opacity-30 hover:bg-[#eff1ff] cursor-pointer"
+            title="Next Lesson"
+          >
+            <span className="material-symbols-outlined text-[18px]">chevron_right</span>
+          </button>
+        </div>
+      </div>
 
       {/* Main Classroom Workspace */}
       <main className="flex-1 flex flex-col md:flex-row w-full p-3 md:p-6 gap-4 pb-20 md:pb-6 max-w-7xl mx-auto">

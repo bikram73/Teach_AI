@@ -2,279 +2,63 @@ import React, { useState } from 'react';
 import { LessonPlan, PersonalizeFormState, ScreenType } from '../types';
 import { Sidebar } from './Sidebar';
 import { ASSETS } from '../data/mockData';
+import { buildDynamicLessonPlan } from '../utils/lessonGenerator';
 
 interface PlanningScreenProps {
   onNavigate: (screen: ScreenType) => void;
   formState?: PersonalizeFormState;
   lessonPlan?: LessonPlan;
+  activeSectionIndex?: number;
+  onSelectSection?: (index: number) => void;
+  onStartLesson?: (index: number) => void;
 }
 
 export const PlanningScreen: React.FC<PlanningScreenProps> = ({
   onNavigate,
   formState,
   lessonPlan: customPlan,
+  activeSectionIndex = 0,
+  onSelectSection,
+  onStartLesson,
 }) => {
-  const [activeSection, setActiveSection] = useState<number>(0);
+  const [activeSection, setActiveSection] = useState<number>(activeSectionIndex);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const topicName = formState?.topicText || (formState?.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Subject') : "Computer Science & Programming");
+  // Dynamic lesson plan built strictly from user inputs (topic, level, language, documentText, etc.)
+  const plan: LessonPlan = customPlan || buildDynamicLessonPlan(formState);
 
-  // Determine dynamic subject-aware default plan if customPlan is not passed
-  const getSubjectAwarePlan = (): LessonPlan => {
-    const lower = topicName.toLowerCase();
-    
-    if (lower.includes('python') || lower.includes('code') || lower.includes('programming') || lower.includes('java') || lower.includes('algorithm')) {
-      return {
-        topic: topicName,
-        estimatedMinutes: 20,
-        level: formState?.currentLevel || 'Intermediate',
-        objective: `Master fundamental syntax, variables, data structures, and functional flow in ${topicName}.`,
-        prerequisites: ['Basic logical reasoning', 'Text editor navigation'],
-        sections: [
-          {
-            id: 'sec-1',
-            title: `Syntax & Core Variable Abstractions`,
-            duration: '4 mins',
-            summary: `Establish how ${topicName} assigns dynamic variables, manages types in memory, and prints outputs.`,
-            keyConcept: 'Variables & Data Types',
-            visualType: 'code',
-            interactivePrompt: 'Inspect the code snippet and observe variable memory assignment.',
-          },
-          {
-            id: 'sec-2',
-            title: 'Control Flow, Conditionals & Branching',
-            duration: '5 mins',
-            summary: 'Learn how if/elif/else statements guide program execution based on runtime conditions.',
-            keyConcept: 'Conditional Logic',
-            visualType: 'code',
-            interactivePrompt: 'Evaluate boolean conditionals and trace the active execution branch.',
-          },
-          {
-            id: 'sec-3',
-            title: 'Functions, Arguments & Scope',
-            duration: '6 mins',
-            summary: 'Deconstruct modular function definitions, parameter passing, and return value mechanics.',
-            keyConcept: 'Modular Encapsulation',
-            visualType: 'code',
-            interactivePrompt: 'Call custom functions and inspect parameter scope inside the live sandbox.',
-          },
-          {
-            id: 'sec-4',
-            title: 'Iteration, Loops & List Comprehensions',
-            duration: '3 mins',
-            summary: 'Traverse collections sequentially with for/while loops and filter data efficiently.',
-            keyConcept: 'Iterative Processing',
-            visualType: 'code',
-            interactivePrompt: 'Run an iteration loop to transform list items in real time.',
-          },
-          {
-            id: 'sec-5',
-            title: 'Diagnostic Code Verification & Synthesis',
-            duration: '2 mins',
-            summary: 'Test edge cases, fix subtle syntax bugs, and review mastery recommendations.',
-            keyConcept: 'Code Debugging & Synthesis',
-            visualType: 'code',
-            interactivePrompt: 'Complete the interactive code challenge to verify mastery.',
-          },
-        ],
-        learningOutcomes: [
-          `Write and debug idiomatic ${topicName} scripts`,
-          'Understand memory models and variable lifetimes',
-          'Implement modular, reusable functions and control flow',
-        ],
-      };
-    } else if (lower.includes('bio') || lower.includes('cell') || lower.includes('dna') || lower.includes('organ') || lower.includes('gene')) {
-      return {
-        topic: topicName,
-        estimatedMinutes: 20,
-        level: formState?.currentLevel || 'Intermediate',
-        objective: `Understand the anatomical architecture, metabolic pathways, and biological mechanisms of ${topicName}.`,
-        prerequisites: ['Basic high school biology', 'Concept of organic molecules'],
-        sections: [
-          {
-            id: 'sec-1',
-            title: `Structural Architecture of ${topicName}`,
-            duration: '4 mins',
-            summary: 'Identify the key organelles and structural components forming the biological boundary.',
-            keyConcept: 'Organelle Organization',
-            visualType: 'diagram',
-            interactivePrompt: 'Click through the interactive cellular diagram to inspect each organelle.',
-          },
-          {
-            id: 'sec-2',
-            title: 'Metabolic & Chemical Pathways',
-            duration: '5 mins',
-            summary: 'Trace how energy (ATP) is generated, transferred, and utilized across biochemical stages.',
-            keyConcept: 'ATP Energy Generation',
-            visualType: 'diagram',
-            interactivePrompt: 'Follow the chemical cascade from substrate entry to product yield.',
-          },
-          {
-            id: 'sec-3',
-            title: 'Membrane Transport & Osmotic Balance',
-            duration: '6 mins',
-            summary: 'Examine active vs. passive diffusion through selective phospholipid channels.',
-            keyConcept: 'Selective Permeability',
-            visualType: 'diagram',
-            interactivePrompt: 'Adjust solute concentrations to observe osmotic equilibrium.',
-          },
-          {
-            id: 'sec-4',
-            title: 'Cellular Regulation & Genetic Expression',
-            duration: '3 mins',
-            summary: 'Understand enzyme regulation and transcription triggers responding to external stimuli.',
-            keyConcept: 'Homeostasis & Feedback Loops',
-            visualType: 'diagram',
-            interactivePrompt: 'Inspect negative feedback loops in action.',
-          },
-          {
-            id: 'sec-5',
-            title: 'Mastery Synthesis & System Assessment',
-            duration: '2 mins',
-            summary: 'Consolidate physiological insights and test conceptual relationships.',
-            keyConcept: 'System Synthesis',
-            visualType: 'diagram',
-            interactivePrompt: 'Review your personalized diagnostic summary.',
-          },
-        ],
-        learningOutcomes: [
-          'Differentiate distinct cellular components and their primary roles',
-          'Describe how metabolic pathways sustain life processes',
-          'Predict cellular responses to osmotic and environmental changes',
-        ],
-      };
-    } else if (lower.includes('history') || lower.includes('war') || lower.includes('revolution') || lower.includes('century') || lower.includes('empire')) {
-      return {
-        topic: topicName,
-        estimatedMinutes: 20,
-        level: formState?.currentLevel || 'Intermediate',
-        objective: `Analyze the socioeconomic catalysts, pivotal turning points, and enduring geopolitical consequences of ${topicName}.`,
-        prerequisites: ['General world geography', 'Basic chronological understanding'],
-        sections: [
-          {
-            id: 'sec-1',
-            title: `Precursor Conditions & Societal Catalysts`,
-            duration: '4 mins',
-            summary: `Examine the underlying economic tensions, ideological shifts, and triggers that ignited ${topicName}.`,
-            keyConcept: 'Structural Preconditions',
-            visualType: 'timeline',
-            interactivePrompt: 'Explore the chronological timeline to identify early warning signs.',
-          },
-          {
-            id: 'sec-2',
-            title: 'Outbreak & Initial Mobilization',
-            duration: '5 mins',
-            summary: 'Trace key initial campaigns, leadership decisions, and the rapid escalation of events.',
-            keyConcept: 'Decisive Catalysts',
-            visualType: 'timeline',
-            interactivePrompt: 'Step through key early declarations and strategic alliances.',
-          },
-          {
-            id: 'sec-3',
-            title: 'The Turning Point: Critical Campaigns',
-            duration: '6 mins',
-            summary: 'Analyze the pivotal battle or treaty that shifted momentum irreversibly.',
-            keyConcept: 'Strategic Inflection Points',
-            visualType: 'timeline',
-            interactivePrompt: 'Inspect the tactical map and milestone timeline.',
-          },
-          {
-            id: 'sec-4',
-            title: 'Resolution, Treaties & Institutional Reform',
-            duration: '3 mins',
-            summary: 'Evaluate the peace negotiations, border changes, and new legal frameworks established.',
-            keyConcept: 'Post-Conflict Realignments',
-            visualType: 'timeline',
-            interactivePrompt: 'Review the terms of settlement and geopolitical restructuring.',
-          },
-          {
-            id: 'sec-5',
-            title: 'Historical Synthesis & Modern Resonance',
-            duration: '2 mins',
-            summary: 'Connect historical outcomes to contemporary institutions and lessons learned.',
-            keyConcept: 'Enduring Legacy',
-            visualType: 'timeline',
-            interactivePrompt: 'Test your understanding of historical cause and effect.',
-          },
-        ],
-        learningOutcomes: [
-          'Identify key socioeconomic triggers and catalysts',
-          'Trace chronological turning points and strategic shifts',
-          'Evaluate lasting impacts on modern governance and society',
-        ],
-      };
-    }
-
-    // Default STEM / General topic plan
-    return {
-      topic: topicName,
-      estimatedMinutes: 20,
-      level: formState?.currentLevel || 'Intermediate',
-      objective: `Build an intuitive mental model of ${topicName}, explore core governing principles, and master practical applications.`,
-      prerequisites: ['Basic introductory concepts', 'Analytical reasoning'],
-      sections: [
-        {
-          id: 'sec-1',
-          title: `Foundational Principles & Intuition of ${topicName}`,
-          duration: '4 mins',
-          summary: `Establish the foundational concepts, definitions, and mental models of ${topicName}.`,
-          keyConcept: 'Core Definitions & Foundations',
-          visualType: 'diagram',
-          interactivePrompt: 'Explore the interactive visual model on the whiteboard.',
-        },
-        {
-          id: 'sec-2',
-          title: `Governing Laws & Analytical Mechanisms`,
-          duration: '5 mins',
-          summary: `Deconstruct the essential relationships, governing rules, and direct proportionalities in ${topicName}.`,
-          keyConcept: 'System Mechanics & Rules',
-          visualType: 'formula',
-          interactivePrompt: 'Manipulate key parameters to see how the system responds in real time.',
-        },
-        {
-          id: 'sec-3',
-          title: 'Interactive System Workbench & Simulation',
-          duration: '6 mins',
-          summary: 'Hands-on interactive testing where you adjust inputs and observe dynamic outputs.',
-          keyConcept: 'Dynamic Equilibrium & Flow',
-          visualType: 'simulation',
-          interactivePrompt: 'Test boundary conditions and observe parameter responses.',
-        },
-        {
-          id: 'sec-4',
-          title: 'Targeted Checkpoint & Misconception Diagnosis',
-          duration: '3 mins',
-          summary: 'Targeted boundary questions designed to uncover common student misconceptions.',
-          keyConcept: 'Boundary Verification',
-          visualType: 'diagram',
-          interactivePrompt: 'Predict outcomes under varied constraint configurations.',
-        },
-        {
-          id: 'sec-5',
-          title: 'Adaptive Synthesis & Performance Feedback',
-          duration: '2 mins',
-          summary: 'Consolidate takeaways, receive diagnostic feedback from Teacher Nova, and advance your roadmap.',
-          keyConcept: 'Mastery & Synthesis',
-          visualType: 'timeline',
-          interactivePrompt: 'Review your personalized mastery scorecard and advance your roadmap.',
-        },
-      ],
-      learningOutcomes: [
-        `Grasp the core operational principles of ${topicName}`,
-        'Accurately predict system behavior under changing constraints',
-        'Overcome common conceptual misconceptions with intuitive models',
-      ],
-    };
+  const handleSelect = (idx: number) => {
+    setActiveSection(idx);
+    if (onSelectSection) onSelectSection(idx);
   };
 
-  const plan: LessonPlan = customPlan || getSubjectAwarePlan();
-
-  const handleStartClassroom = () => {
+  const handleStartClassroom = (targetIdx?: number) => {
+    const idx = targetIdx ?? activeSection;
     setIsGenerating(true);
     setTimeout(() => {
       setIsGenerating(false);
-      onNavigate('classroom');
-    }, 400);
+      if (onStartLesson) {
+        onStartLesson(idx);
+      } else {
+        onNavigate('classroom');
+      }
+    }, 250);
+  };
+
+  const getVisualIcon = (type: string) => {
+    switch (type) {
+      case 'code':
+        return 'terminal';
+      case 'diagram':
+        return 'account_tree';
+      case 'timeline':
+        return 'timeline';
+      case 'circuit':
+        return 'bolt';
+      case 'formula':
+      default:
+        return 'functions';
+    }
   };
 
   return (
@@ -289,7 +73,7 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
           <div className="flex-1">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f2f3ff] border border-[#c7c4d7]/70 text-[#4648d4] text-xs font-bold mb-3 shadow-xs">
               <span className="material-symbols-outlined text-[16px]">psychology</span>
-              Gemini Lesson Planner Agent
+              AI Lesson Director & Planner
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#131b2e] tracking-tight">
               {plan.topic}
@@ -312,6 +96,10 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
                 <span className="material-symbols-outlined text-[14px]">translate</span>
                 Language: {formState?.language || 'English'}
               </span>
+              <span className="bg-[#eff1ff] text-[#4648d4] text-xs font-semibold px-3 py-1 rounded-lg border border-[#c7c4d7]/60 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">style</span>
+                Style: {formState?.teachingStyle || 'Conceptual'}
+              </span>
             </div>
           </div>
 
@@ -327,44 +115,76 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
 
         {/* 2-Column: Left Sections Timeline, Right Section Detail */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
-          {/* Sections List (col-span-5) */}
+          {/* Target Element: Lesson Sequence container (col-span-5) */}
           <div className="lg:col-span-5 flex flex-col gap-3">
             <div className="flex items-center justify-between mb-1 px-1">
-              <h2 className="text-sm font-bold text-[#131b2e] uppercase tracking-wider">Lesson Sequence</h2>
-              <span className="text-xs text-[#464554]">{plan.sections.length} Sections</span>
+              <div>
+                <h2 className="text-sm font-bold text-[#131b2e] uppercase tracking-wider">Lesson Sequence</h2>
+                <p className="text-[11px] text-[#464554]">Structured curriculum generated from your inputs</p>
+              </div>
+              <span className="text-xs font-bold text-[#4648d4] bg-[#eff1ff] px-2.5 py-0.5 rounded-full border border-[#c7c4d7]/50">
+                {plan.sections.length} Lessons
+              </span>
             </div>
 
             {plan.sections.map((sec, idx) => {
               const isSelected = activeSection === idx;
+              const vIcon = getVisualIcon(sec.visualType);
               return (
                 <div
                   key={sec.id}
-                  onClick={() => setActiveSection(idx)}
-                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
+                  onClick={() => handleSelect(idx)}
+                  className={`p-4 rounded-2xl border transition-all cursor-pointer flex flex-col gap-2.5 ${
                     isSelected
-                      ? 'bg-white border-[#4648d4] shadow-md ring-1 ring-[#4648d4]/30'
+                      ? 'bg-white border-[#4648d4] shadow-md ring-2 ring-[#4648d4]/20'
                       : 'bg-white/80 border-[#c7c4d7]/70 hover:border-[#6063ee] hover:bg-white'
                   }`}
                 >
-                  <div
-                    className={`w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
-                      isSelected ? 'bg-[#4648d4] text-white shadow-sm' : 'bg-[#eaedff] text-[#464554]'
-                    }`}
-                  >
-                    {idx + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <h3 className={`text-xs sm:text-sm font-bold truncate ${isSelected ? 'text-[#4648d4]' : 'text-[#131b2e]'}`}>
-                        {sec.title}
-                      </h3>
-                      <span className="text-[11px] font-semibold text-[#464554] shrink-0 bg-[#faf8ff] px-2 py-0.5 rounded border border-[#c7c4d7]/40">
-                        {sec.duration}
-                      </span>
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
+                        isSelected ? 'bg-[#4648d4] text-white shadow-sm' : 'bg-[#eaedff] text-[#464554]'
+                      }`}
+                    >
+                      {idx + 1}
                     </div>
-                    <p className="text-xs text-[#464554] line-clamp-2 leading-relaxed">
-                      {sec.summary}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1 mb-1">
+                        <h3 className={`text-xs sm:text-sm font-bold truncate ${isSelected ? 'text-[#4648d4]' : 'text-[#131b2e]'}`}>
+                          {sec.title}
+                        </h3>
+                        <span className="text-[11px] font-semibold text-[#464554] shrink-0 bg-[#faf8ff] px-2 py-0.5 rounded border border-[#c7c4d7]/40">
+                          {sec.duration}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[#464554] line-clamp-2 leading-relaxed">
+                        {sec.summary}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-[#c7c4d7]/30 text-[11px]">
+                    <span className="inline-flex items-center gap-1 text-[#4648d4] font-medium">
+                      <span className="material-symbols-outlined text-[14px]">{vIcon}</span>
+                      {sec.visualType.toUpperCase()}
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartClassroom(idx);
+                      }}
+                      className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#4648d4] text-white hover:bg-[#372abf]'
+                          : 'bg-[#f2f3ff] text-[#4648d4] hover:bg-[#e0e4ff]'
+                      }`}
+                      title={`Launch Classroom at Lesson ${idx + 1}`}
+                    >
+                      <span className="material-symbols-outlined text-[14px]">play_arrow</span>
+                      Teach Lesson {idx + 1}
+                    </button>
                   </div>
                 </div>
               );
@@ -376,18 +196,21 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
             <div>
               <div className="flex items-center justify-between pb-3 mb-4 border-b border-[#c7c4d7]/40">
                 <span className="text-xs uppercase font-bold text-[#4648d4] tracking-wider">
-                  Section {activeSection + 1} Overview
+                  Lesson {activeSection + 1} of {plan.sections.length} Overview
                 </span>
-                <span className="text-xs font-semibold text-[#464554] bg-[#eff1ff] px-2.5 py-1 rounded-md text-[#4648d4] border border-[#c7c4d7]/50">
-                  Visual Engine: {plan.sections[activeSection].visualType.toUpperCase()}
+                <span className="text-xs font-semibold bg-[#eff1ff] px-2.5 py-1 rounded-md text-[#4648d4] border border-[#c7c4d7]/50 flex items-center gap-1">
+                  <span className="material-symbols-outlined text-[14px]">
+                    {getVisualIcon(plan.sections[activeSection]?.visualType || 'diagram')}
+                  </span>
+                  Visual Engine: {(plan.sections[activeSection]?.visualType || 'diagram').toUpperCase()}
                 </span>
               </div>
 
               <h3 className="text-lg font-bold text-[#131b2e] mb-2">
-                {plan.sections[activeSection].title}
+                {plan.sections[activeSection]?.title}
               </h3>
               <p className="text-xs sm:text-sm text-[#464554] leading-relaxed mb-4">
-                {plan.sections[activeSection].summary}
+                {plan.sections[activeSection]?.summary}
               </p>
 
               {/* Key Concept Box */}
@@ -397,7 +220,7 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
                   Target Concept
                 </div>
                 <p className="text-xs text-[#0369a1] font-medium">
-                  {plan.sections[activeSection].keyConcept}
+                  {plan.sections[activeSection]?.keyConcept}
                 </p>
               </div>
 
@@ -408,7 +231,7 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
                   Interactive Classroom Element
                 </div>
                 <p className="text-xs text-[#6b21a8] leading-relaxed">
-                  {plan.sections[activeSection].interactivePrompt}
+                  {plan.sections[activeSection]?.interactivePrompt}
                 </p>
               </div>
 
@@ -429,20 +252,24 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
             {/* Launch Classroom Action */}
             <div className="mt-6 pt-4 border-t border-[#c7c4d7]/60 flex items-center justify-between">
               <button
+                type="button"
                 onClick={() => onNavigate('personalize')}
-                className="text-xs text-[#464554] hover:text-[#131b2e] font-semibold flex items-center gap-1"
+                className="text-xs text-[#464554] hover:text-[#131b2e] font-semibold flex items-center gap-1 cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[16px]">tune</span>
                 Adjust Preferences
               </button>
 
               <button
-                onClick={handleStartClassroom}
+                type="button"
+                onClick={() => handleStartClassroom(activeSection)}
                 disabled={isGenerating}
                 className="px-6 py-3 bg-gradient-to-r from-[#4648d4] to-[#6063ee] text-white font-bold text-xs rounded-xl hover:opacity-95 shadow-md flex items-center gap-2 transition-all cursor-pointer"
               >
                 <span className="material-symbols-outlined text-[18px]">play_circle</span>
-                {isGenerating ? 'Initializing AI Classroom...' : 'Begin Teaching Session'}
+                {isGenerating
+                  ? 'Initializing AI Classroom...'
+                  : `Begin Teaching Lesson ${activeSection + 1}`}
               </button>
             </div>
           </div>
