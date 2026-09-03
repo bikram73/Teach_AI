@@ -115,26 +115,29 @@ export default function App() {
       />
 
       {/* Screen Quick Switcher Ribbon */}
-      <div className="w-full py-1.5 px-4 text-xs flex items-center justify-between overflow-x-auto border-b z-30 transition-colors bg-[#eaedff]/80 text-[#131b2e]/80 border-[#c7c4d7]/60">
-        <div className="flex items-center gap-1 shrink-0 font-semibold text-[11px] mr-2">
-          <span className="material-symbols-outlined text-[15px] text-[#4648d4]">auto_awesome</span>
-          <span>Screens:</span>
-        </div>
-        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          {screenLabels.map((s) => (
-            <button
-              key={s.id}
-              onClick={() => handleProtectedNavigate(s.id)}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold flex items-center gap-1 transition-all whitespace-nowrap cursor-pointer ${
-                currentScreen === s.id
-                  ? 'bg-[#4648d4] text-white shadow-sm'
-                  : 'bg-white hover:bg-[#f2f3ff] text-[#464554] border border-[#c7c4d7]/50'
-              }`}
-            >
-              <span className="material-symbols-outlined text-[13px]">{s.icon}</span>
-              {s.label}
-            </button>
-          ))}
+      <div className="w-full border-b z-30 transition-colors bg-[#eaedff]/90 backdrop-blur-xs text-[#131b2e]/90 border-[#c7c4d7]/60">
+        <div className="max-w-[1280px] mx-auto w-full py-1.5 px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar">
+          <div className="flex items-center gap-1.5 shrink-0 font-semibold text-[11px] sm:text-xs text-[#131b2e]">
+            <span className="material-symbols-outlined text-[15px] text-[#4648d4]">auto_awesome</span>
+            <span className="hidden xs:inline">Navigation</span>
+            <span className="xs:hidden">Step</span>
+          </div>
+          <div className="flex items-center gap-1 sm:gap-1.5 md:gap-2 overflow-x-auto no-scrollbar scroll-smooth py-0.5">
+            {screenLabels.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => handleProtectedNavigate(s.id)}
+                className={`px-2.5 sm:px-3 py-1 rounded-full text-[11px] sm:text-xs font-semibold flex items-center gap-1 transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                  currentScreen === s.id
+                    ? 'bg-[#4648d4] text-white shadow-xs'
+                    : 'bg-white hover:bg-[#f2f3ff] text-[#464554] hover:text-[#131b2e] border border-[#c7c4d7]/60'
+                }`}
+              >
+                <span className="material-symbols-outlined text-[13px] sm:text-[14px]">{s.icon}</span>
+                <span>{s.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
