@@ -157,6 +157,16 @@ export default function App() {
             onNavigate={handleProtectedNavigate} 
             userName={userName}
             onOpenNameModal={handleOpenEditNameModal}
+            onSelectTrack={(topic, level, goal, dest) => {
+              setFormState(prev => ({
+                ...prev,
+                sourceMaterial: 'topic',
+                topicText: topic,
+                currentLevel: level,
+                primaryGoal: goal,
+              }));
+              handleProtectedNavigate(dest || 'classroom');
+            }}
           />
         )}
         {currentScreen === 'personalize' && (
