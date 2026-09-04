@@ -180,23 +180,6 @@ export const TopNav: React.FC<TopNavProps> = ({
 
         {/* Right utility icons & User Profile Name */}
         <div id="top-nav-utility-actions" className="flex items-center gap-2 text-[#4648d4] relative">
-          {/* History Icon Button */}
-          <button 
-            id="top-nav-history-btn"
-            title="Activity History & Past Quizzes"
-            onClick={() => onNavigate('history')}
-            className={`p-2 rounded-full transition-all flex items-center justify-center relative ${
-              currentScreen === 'history' ? 'bg-[#4648d4] text-white shadow-xs' : 'hover:bg-[#f2f3ff] text-[#4648d4]'
-            }`}
-          >
-            <span className="material-symbols-outlined text-[20px]">manage_history</span>
-            {historyCount > 0 && currentScreen !== 'history' && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-[#4648d4] text-white text-[9px] font-bold flex items-center justify-center">
-                {historyCount > 99 ? '99+' : historyCount}
-              </span>
-            )}
-          </button>
-
           {/* Interactive Language Selector Button & Dropdown */}
           <div ref={langRef} className="relative">
             <button 
