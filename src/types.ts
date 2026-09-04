@@ -6,7 +6,8 @@ export type ScreenType =
   | 'question' 
   | 'adaptive' 
   | 'results' 
-  | 'path';
+  | 'path'
+  | 'history';
 
 export interface DocumentSection {
   id: string;
@@ -189,5 +190,46 @@ export interface ClassroomScene {
     formula: string;
     description?: string;
     variables: Array<{ name: string; symbol: string; min: number; max: number; current: number; unit: string; step?: number }>;
+  };
+}
+
+export type ActivityCategory = 
+  | 'lesson'       // Started lesson, finished scene, navigated step
+  | 'quiz'         // Answered question, completed quiz
+  | 'simulation'   // Ran code snippet, adjusted circuit, explored diagram/timeline/formula
+  | 'chat'         // Asked Teacher Nova question, received answer/analogy
+  | 'note'         // Saved notes during study session
+  | 'adaptive'     // Adaptive remediation drill, misconception resolved
+  | 'setup';       // Topic personalized, document uploaded, settings changed
+
+export interface StudentActivityEvent {
+  id: string;
+  timestamp: number;          // epoch ms
+  dateTimeFormatted: string;  // e.g. "Sep 4, 2026, 08:49 AM"
+  timeOnlyFormatted: string;  // e.g. "08:49:15 AM"
+  dateOnlyFormatted: string;  // e.g. "September 4, 2026"
+  category: ActivityCategory;
+  title: string;
+  description: string;
+  targetScreen?: ScreenType;
+  metadata?: {
+    topic?: string;
+    level?: string;
+    lessonIndex?: number;
+    questionText?: string;
+    selectedAnswer?: string;
+    correctAnswer?: string;
+    isCorrect?: boolean;
+    scorePercent?: number;
+    totalQuestions?: number;
+    codeSnippet?: string;
+    codeOutput?: string;
+    simulationType?: string;
+    circuitDetails?: { voltage?: number; resistance?: number; current?: number };
+    chatQuery?: string;
+    chatResponse?: string;
+    noteContent?: string;
+    fileName?: string;
+    [key: string]: any;
   };
 }

@@ -104,6 +104,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentScreen, onNavigate, dar
           <span className="material-symbols-outlined text-[20px]">leaderboard</span>
           <span>Progress</span>
         </button>
+
+        <button
+          onClick={() => onNavigate('history')}
+          className={`flex items-center gap-3 px-4 py-2.5 rounded-xl font-medium text-sm transition-all w-full text-left ${
+            currentScreen === 'history'
+              ? 'bg-[#6063ee] text-white border-l-4 border-[#4648d4] font-bold shadow-sm translate-x-0.5'
+              : dark
+              ? 'text-white/70 hover:bg-white/10 hover:text-white'
+              : 'text-[#464554] hover:bg-[#dae2fd]/60 hover:text-[#4648d4]'
+          }`}
+        >
+          <span className="material-symbols-outlined text-[20px]">manage_history</span>
+          <span>History</span>
+        </button>
       </nav>
 
       {/* Footer Navigation */}

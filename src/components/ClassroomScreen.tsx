@@ -3,6 +3,7 @@ import { ASSETS } from '../data/mockData';
 import { ClassroomScene, LessonPlan, PersonalizeFormState, ScreenType, VisualMode } from '../types';
 import { getLanguageBCP47, getBestVoice, isPureEnglish } from '../utils/language';
 import { buildDynamicLessonPlan, buildDynamicScenesFromPlan } from '../utils/lessonGenerator';
+import { addActivityEvent } from '../utils/historyStorage';
 
 interface ClassroomScreenProps {
   onNavigate: (screen: ScreenType) => void;
@@ -582,6 +583,19 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
         } else {
           setCodeOutput(`[Output for ${currentTopic}]\nCode executed cleanly.\nMemory allocated: 1.2 MB\n>>> Process finished with exit code 0`);
         }
+
+        // Log simulation activity in student history
+        addActivityEvent({
+          category: 'simulation',
+          title: `Executed Code Sandbox (${currentTopic})`,
+          description: `Ran ${codeSnippet.split('\n').length} lines of code simulation in the interactive classroom whiteboard.`,
+          targetScreen: 'classroom',
+          metadata: {
+            topic: currentTopic,
+            codeSnippet: codeSnippet.slice(0, 300),
+            codeOutput: printOutputs.length > 0 ? printOutputs.join('\n') : 'Code executed cleanly',
+          },
+        });
       } catch (err: any) {
         setCodeOutput(`Execution Error: ${err.message}`);
       }
@@ -660,6 +674,20 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
             citations: data.grounding?.citations,
           },
         ]);
+
+        // Log AI Q&A in student history
+        addActivityEvent({
+          category: 'chat',
+          title: `Asked Teacher Nova: "${query.slice(0, 48)}${query.length > 48 ? '...' : ''}"`,
+          description: `Teacher Nova explained: "${cleanAnswer.slice(0, 100)}..."`,
+          targetScreen: 'classroom',
+          metadata: {
+            topic: currentTopic,
+            chatQuery: query,
+            chatResponse: cleanAnswer.slice(0, 400),
+            scene: currentScene.title,
+          },
+        });
 
         if ('speechSynthesis' in window && !isMuted) {
           const u = new SpeechSynthesisUtterance(cleanAnswer);
@@ -1389,6 +1417,23 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
                         onClick={() => {
                           setSelectedMicroQuizOption(optIdx);
                           setHasAnsweredMicroQuiz(true);
+                          const correctIdx = currentScene.microQuiz?.correctIndex ?? 0;
+                          const wasCorrect = optIdx === correctIdx;
+
+                          addActivityEvent({
+                            category: 'quiz',
+                            title: `Micro-Quiz (Scene ${currentSceneIndex + 1}): ${wasCorrect ? 'Passed' : 'Missed'}`,
+                            description: `Question: "${currentScene.microQuiz?.question.slice(0, 70)}..."`,
+                            targetScreen: 'classroom',
+                            metadata: {
+                              topic: currentTopic,
+                              lessonIndex: currentSceneIndex,
+                              questionText: currentScene.microQuiz?.question,
+                              selectedAnswer: opt,
+                              correctAnswer: currentScene.microQuiz?.options[correctIdx],
+                              isCorrect: wasCorrect,
+                            },
+                          });
                         }}
                         className={`w-full text-left p-2.5 rounded-xl border text-xs transition-all flex items-center justify-between cursor-pointer ${optStyle}`}
                       >

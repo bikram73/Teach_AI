@@ -3,6 +3,7 @@ import { ASSETS } from '../data/mockData';
 import { AssessmentItem, LessonPlan, ScreenType, UserAssessmentSummary } from '../types';
 import { Sidebar } from './Sidebar';
 import { buildDynamicLessonPlan, buildDynamicQuestions } from '../utils/lessonGenerator';
+import { addActivityEvent } from '../utils/historyStorage';
 
 interface QuestionScreenProps {
   onNavigate: (screen: ScreenType) => void;
@@ -384,6 +385,21 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
       setSubmittedQuestions((prev) => ({ ...prev, [currentIndex]: true }));
       const isCorrect = selectedOption === currentQuestion.correctAnswer;
 
+      // Log quiz answer in student history
+      addActivityEvent({
+        category: 'quiz',
+        title: `Quiz Q${currentIndex + 1} (${currentQuestion.concept}): ${isCorrect ? 'Correct' : 'Incorrect'}`,
+        description: `Selected option ${selectedOption}. Question: "${currentQuestion.question.slice(0, 80)}..."`,
+        targetScreen: 'question',
+        metadata: {
+          topic: topicTitle,
+          questionText: currentQuestion.question,
+          selectedAnswer: selectedOption,
+          correctAnswer: currentQuestion.correctAnswer,
+          isCorrect,
+        },
+      });
+
       // Evaluate with server for dynamic misconception detection
       try {
         const res = await fetch('/api/lesson/evaluate', {
@@ -463,6 +479,20 @@ export const QuestionScreen: React.FC<QuestionScreenProps> = ({
     if (onCompleteAssessment) {
       onCompleteAssessment(summary);
     }
+
+    // Log diagnostic quiz completion in student history
+    addActivityEvent({
+      category: 'quiz',
+      title: `Finished Diagnostic Quiz (${topicTitle}): ${scorePercent}%`,
+      description: `Scored ${correctCount}/${questions.length} correct. ${scorePercent >= 70 ? 'Passed mastery checkpoint.' : 'Adaptive review suggested.'}`,
+      targetScreen: weakAreas.length > 0 && scorePercent < 80 ? 'adaptive' : 'results',
+      metadata: {
+        topic: topicTitle,
+        scorePercent,
+        totalQuestions: questions.length,
+        isCorrect: scorePercent >= 60,
+      },
+    });
 
     if (weakAreas.length > 0 && scorePercent < 80) {
       onNavigate('adaptive');

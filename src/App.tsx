@@ -7,10 +7,12 @@ import { QuestionScreen } from './components/QuestionScreen';
 import { AdaptiveScreen } from './components/AdaptiveScreen';
 import { ResultsScreen } from './components/ResultsScreen';
 import { LearningPathScreen } from './components/LearningPathScreen';
+import { HistoryScreen } from './components/HistoryScreen';
 import { TopNav } from './components/TopNav';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { UserNameModal } from './components/UserNameModal';
 import { getStoredUserName, saveStoredUserName } from './utils/userStorage';
+import { addActivityEvent } from './utils/historyStorage';
 import { LessonPlan, PersonalizeFormState, ScreenType, UserAssessmentSummary } from './types';
 
 export default function App() {
@@ -103,6 +105,7 @@ export default function App() {
     { id: 'adaptive', label: '6. Adaptive', icon: 'swap_calls' },
     { id: 'results', label: '7. Progress', icon: 'leaderboard' },
     { id: 'path', label: '8. Path', icon: 'alt_route' },
+    { id: 'history', label: '9. History', icon: 'manage_history' },
   ];
 
   return (
@@ -215,6 +218,12 @@ export default function App() {
             documentText={formState.uploadedFileContent}
             userLevel={formState.currentLevel}
             userLanguage={formState.language}
+          />
+        )}
+        {currentScreen === 'history' && (
+          <HistoryScreen
+            onNavigate={handleProtectedNavigate}
+            userName={userName}
           />
         )}
       </main>

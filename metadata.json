@@ -1,6 +1,6 @@
 {
   "name": "TeachAI — Adaptive AI Teacher",
-  "description": "An adaptive AI teacher application that personalizes learning lessons, provides interactive classroom guidance, and adapts teaching strategies to student mastery.",
+  "description": "An adaptive AI teacher application that personalizes learning lessons, provides interactive classroom guidance, and records full student activity history stored persistently in browser cache and cookies.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ASSETS } from '../data/mockData';
 import { ScreenType } from '../types';
+import { getStudentHistory, subscribeToHistoryUpdates } from '../utils/historyStorage';
 
 interface TopNavProps {
   currentScreen: ScreenType;
@@ -15,6 +16,15 @@ export const TopNav: React.FC<TopNavProps> = ({
   userName,
   onOpenNameModal 
 }) => {
+  const [historyCount, setHistoryCount] = useState<number>(() => getStudentHistory().length);
+
+  useEffect(() => {
+    const unsub = subscribeToHistoryUpdates(() => {
+      setHistoryCount(getStudentHistory().length);
+    });
+    return unsub;
+  }, []);
+
   return (
     <header className="bg-[#faf8ff] docked full-width top-0 border-b border-[#c7c4d7]/60 shadow-sm z-50 sticky">
       <div className="flex justify-between items-center w-full px-6 py-2 max-w-[1280px] mx-auto">
@@ -68,10 +78,39 @@ export const TopNav: React.FC<TopNavProps> = ({
           >
             Progress
           </button>
+          <button
+            onClick={() => onNavigate('history')}
+            className={`font-medium text-sm transition-all pb-1 flex items-center gap-1.5 ${
+              currentScreen === 'history'
+                ? 'text-[#4648d4] font-bold border-b-2 border-[#4648d4]'
+                : 'text-[#464554] hover:text-[#4648d4] hover:bg-[#f2f3ff] px-2 py-1 rounded-lg'
+            }`}
+          >
+            <span>History</span>
+            {historyCount > 0 && (
+              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-[#eff1ff] text-[#4648d4] border border-[#c7c4d7]/60">
+                {historyCount}
+              </span>
+            )}
+          </button>
         </nav>
 
         {/* Right utility icons & User Profile Name */}
         <div className="flex items-center gap-2 text-[#4648d4]">
+          <button 
+            title="Activity History"
+            onClick={() => onNavigate('history')}
+            className={`p-2 rounded-full transition-all flex items-center justify-center relative ${
+              currentScreen === 'history' ? 'bg-[#4648d4] text-white' : 'hover:bg-[#f2f3ff] text-[#4648d4]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">manage_history</span>
+            {historyCount > 0 && currentScreen !== 'history' && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-[#4648d4] text-white text-[9px] font-bold flex items-center justify-center">
+                {historyCount > 99 ? '99+' : historyCount}
+              </span>
+            )}
+          </button>
           <button 
             title="Language"
             className="p-2 hover:bg-[#f2f3ff] rounded-full transition-all flex items-center justify-center text-[#4648d4]"

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ASSETS } from '../data/mockData';
 import { ScreenType, UserAssessmentSummary } from '../types';
 import { Sidebar } from './Sidebar';
+import { addActivityEvent } from '../utils/historyStorage';
 
 interface AdaptiveScreenProps {
   onNavigate: (screen: ScreenType) => void;
@@ -312,7 +313,21 @@ export const AdaptiveScreen: React.FC<AdaptiveScreenProps> = ({
 
             {!followupSubmitted ? (
               <button
-                onClick={() => setFollowupSubmitted(true)}
+                onClick={() => {
+                  setFollowupSubmitted(true);
+                  addActivityEvent({
+                    category: 'quiz',
+                    title: `Adaptive Remediation Checkpoint: ${selectedFollowup === 'A' ? 'Verified' : 'Completed'}`,
+                    description: `Resolved intuition checkpoint on "${weakConcept}" for ${currentTopic}.`,
+                    targetScreen: 'adaptive',
+                    metadata: {
+                      topic: currentTopic,
+                      concept: weakConcept,
+                      selectedAnswer: selectedFollowup,
+                      isCorrect: selectedFollowup === 'A',
+                    },
+                  });
+                }}
                 disabled={!selectedFollowup}
                 className="px-5 py-2 bg-[#4648d4] hover:bg-[#372abf] disabled:opacity-50 text-white font-bold text-xs rounded-xl shadow-xs cursor-pointer transition-all"
               >

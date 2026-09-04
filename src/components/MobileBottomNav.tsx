@@ -57,6 +57,16 @@ export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentScreen,
         <span className="material-symbols-outlined text-[22px]">leaderboard</span>
         <span className="text-[11px] mt-0.5 font-medium">Progress</span>
       </button>
+
+      <button
+        onClick={() => onNavigate('history')}
+        className={`flex flex-col items-center p-1.5 transition-colors ${
+          currentScreen === 'history' ? 'text-[#4648d4] font-bold' : dark ? 'text-white/60 hover:text-white' : 'text-[#464554] hover:text-[#4648d4]'
+        }`}
+      >
+        <span className="material-symbols-outlined text-[22px]">manage_history</span>
+        <span className="text-[11px] mt-0.5 font-medium">History</span>
+      </button>
     </nav>
   );
 };

@@ -60,6 +60,7 @@ export const UserNameModal: React.FC<UserNameModalProps> = ({
     adaptive: 'Adaptive Remediation',
     results: 'Progress & Mastery',
     path: 'Learning Path',
+    history: 'Student Activity History',
   };
 
   const quickPresets = ['Alex', 'Bikram', 'Jordan', 'Sam', 'Taylor'];

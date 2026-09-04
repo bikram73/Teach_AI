@@ -3,6 +3,7 @@ import { LessonPlan, PersonalizeFormState, ScreenType } from '../types';
 import { Sidebar } from './Sidebar';
 import { ASSETS } from '../data/mockData';
 import { buildDynamicLessonPlan } from '../utils/lessonGenerator';
+import { addActivityEvent } from '../utils/historyStorage';
 
 interface PlanningScreenProps {
   onNavigate: (screen: ScreenType) => void;
@@ -165,6 +166,22 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
 
   const handleGoToPage = (targetIdx: number, targetScreen?: ScreenType) => {
     const dest = targetScreen || getActiveDestination(targetIdx).screen;
+    const sec = plan.sections[targetIdx];
+
+    // Log activity in student history
+    addActivityEvent({
+      category: 'lesson',
+      title: `Selected Step ${targetIdx + 1}: ${sec?.title || 'Lesson Step'}`,
+      description: `Launched ${dest.toUpperCase()} session to learn "${sec?.title || plan.topic}".`,
+      targetScreen: dest,
+      metadata: {
+        topic: plan.topic,
+        lessonIndex: targetIdx,
+        stepTitle: sec?.title,
+        destination: dest,
+      },
+    });
+
     setIsGenerating(true);
     setTimeout(() => {
       setIsGenerating(false);

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { LessonPlan, PersonalizeFormState, ScreenType } from '../types';
 import { extractClientDocumentInsights } from '../utils/lessonGenerator';
+import { addActivityEvent } from '../utils/historyStorage';
 
 interface PersonalizeScreenProps {
   onNavigate: (screen: ScreenType) => void;
@@ -195,6 +196,19 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
     setDetectedConcepts(resolvedConcepts.slice(0, 6));
     setDetectedSubject(resolvedSubject);
     setIsUploading(false);
+
+    // Record activity in student history
+    addActivityEvent({
+      category: 'setup',
+      title: `Uploaded Study Material: ${file.name}`,
+      description: `Extracted learning concepts for topic "${resolvedTopic}" (${Math.max(1, Math.round(file.size / 1024))} KB).`,
+      targetScreen: 'personalize',
+      metadata: {
+        fileName: file.name,
+        topic: resolvedTopic,
+        keyConcepts: resolvedConcepts.slice(0, 6),
+      },
+    });
   };
 
   const handleSubmit = async () => {
@@ -250,6 +264,22 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
         clearInterval(progressIntervalRef.current);
       }
       setLoadingProgress(100);
+
+      // Record activity event
+      addActivityEvent({
+        category: 'setup',
+        title: `Curriculum Configured: ${finalForm.topicText}`,
+        description: `Personalized curriculum generated for ${finalForm.currentLevel} level, targeting "${finalForm.primaryGoal}" (${finalForm.timeAvailable} study session).`,
+        targetScreen: 'planning',
+        metadata: {
+          topic: finalForm.topicText,
+          level: finalForm.currentLevel,
+          goal: finalForm.primaryGoal,
+          duration: finalForm.timeAvailable,
+          style: finalForm.teachingStyle,
+        },
+      });
+
       setTimeout(() => {
         setLoadingPlan(false);
         onNavigate('planning');
