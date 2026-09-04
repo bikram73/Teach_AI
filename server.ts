@@ -512,27 +512,134 @@ app.get("/api/ai/status", (req, res) => {
 });
 
 // Helper: infer domain and visual mode from topic or text
-function inferSubjectMetadata(topicOrText: string): { subject: string; visualType: string } {
-  const t = (topicOrText || "").toLowerCase();
-  if (/python|javascript|typescript|c\+\+|java|react|rust|golang|sql|algorithm|data struct|variable|function|loop|class|recursion/i.test(t)) {
+function inferSubjectMetadata(topicOrText: string, documentText?: string): { subject: string; visualType: string } {
+  const combined = `${topicOrText || ""} ${documentText || ""}`.toLowerCase();
+  if (/python|javascript|typescript|c\+\+|java|react|rust|golang|sql|algorithm|data struct|variable|function|loop|class|recursion|compiler|backend|frontend|programming/i.test(combined)) {
     return { subject: "Computer Science & Programming", visualType: "code" };
   }
-  if (/cell|mitochon|dna|rna|genet|organism|biolog|protein|photosynth|bacteria|virus|evolut|anatomy/i.test(t)) {
+  if (/cell|mitochon|dna|rna|genet|organism|biolog|protein|photosynth|bacteria|virus|evolut|anatomy|neuron|synapse|membrane/i.test(combined)) {
     return { subject: "Biology & Life Sciences", visualType: "diagram" };
   }
-  if (/war|treaty|revolution|empire|century|history|president|dynasty|battle|civil war|wwii|world war/i.test(t)) {
+  if (/war|treaty|revolution|empire|century|history|president|dynasty|battle|civil war|wwii|world war|republic|sovereignty|monarchy/i.test(combined)) {
     return { subject: "History & Social Studies", visualType: "timeline" };
   }
-  if (/circuit|ohm|volt|current|resistan|electron|power|ampere|capacit|induct|transistor/i.test(t)) {
+  if (/circuit|ohm|volt|current|resistan|electron|power|ampere|capacit|induct|transistor|semiconductor/i.test(combined)) {
     return { subject: "Electrical Engineering & Physics", visualType: "circuit" };
   }
-  if (/calculus|derivative|integral|matrix|algebra|equation|trigonomet|geometry|probability|theorem/i.test(t)) {
+  if (/calculus|derivative|integral|matrix|algebra|equation|trigonomet|geometry|probability|theorem|eigen|tensor/i.test(combined)) {
     return { subject: "Mathematics", visualType: "formula" };
   }
-  if (/gravity|momentum|force|friction|quantum|thermodynamic|optics|velocity|acceleration|wave/i.test(t)) {
+  if (/gravity|momentum|force|friction|quantum|thermodynamic|optics|velocity|acceleration|wave|energy|relativity/i.test(combined)) {
     return { subject: "Physics & Mechanics", visualType: "simulation" };
   }
+  if (/gdp|inflation|elasticity|macroeconom|microeconom|market|monopoly|fiscal|monetary|supply and demand/i.test(combined)) {
+    return { subject: "Economics & Finance", visualType: "diagram" };
+  }
   return { subject: "General Academic & STEM", visualType: "diagram" };
+}
+
+// Helper: extract key concepts and outline from uploaded document text
+function extractDocumentInsights(documentText?: string, topic?: string): {
+  detectedTopic: string;
+  concepts: string[];
+  sections: Array<{ title: string; concept: string; summary: string }>;
+} {
+  const text = (documentText || "").trim();
+  const fallbackTopic = topic || "Foundational Curriculum";
+  if (!text) {
+    return {
+      detectedTopic: fallbackTopic,
+      concepts: [`${fallbackTopic} Principles`, "Core Mechanics", "Practical Applications", "Mastery Synthesis"],
+      sections: [
+        { title: `Foundations of ${fallbackTopic}`, concept: `${fallbackTopic} Fundamentals`, summary: `Core definitions and introductory concepts.` },
+        { title: `Mechanisms & Structure`, concept: "Structural Dynamics", summary: `Key operations, constraints, and relationships.` },
+        { title: `Applied Practice & Analysis`, concept: "Applied Methodology", summary: `Real-world examples and worked problem scenarios.` },
+        { title: `Synthesis & Integration`, concept: "Mastery Integration", summary: `Consolidation of insights and evaluation.` },
+      ],
+    };
+  }
+
+  // 1. Detect candidate topic from headings or first significant sentence
+  const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+  let detectedTopic = topic || "";
+  if (!detectedTopic || /upload|document|lecture|notes|chapter|foundational/i.test(detectedTopic)) {
+    const headingCandidate = lines.find(l => /^#+\s+/.test(l) || /^(chapter|unit|topic|lecture|lesson)\s+/i.test(l));
+    if (headingCandidate) {
+      detectedTopic = headingCandidate.replace(/^[#\s\-*:]+/, "").replace(/^(chapter|unit|topic|lecture|lesson)\s*[\d.:\-]*\s*/i, "").trim();
+    } else if (lines.length > 0 && lines[0].length < 60) {
+      detectedTopic = lines[0].replace(/^[#\s\-*:]+/, "").trim();
+    }
+  }
+  if (!detectedTopic) detectedTopic = fallbackTopic;
+
+  // 2. Extract key concepts (search for bold items, bullet points, capitalized terms or definitions)
+  const concepts: string[] = [];
+  const conceptSet = new Set<string>();
+
+  // Look for bold terms: **Concept**
+  const boldMatches = text.match(/\*\*([^*]{3,40})\*\*/g);
+  if (boldMatches) {
+    for (const bm of boldMatches) {
+      const clean = bm.replace(/\*\*/g, "").trim();
+      if (clean && !conceptSet.has(clean.toLowerCase()) && clean.length < 35) {
+        conceptSet.add(clean.toLowerCase());
+        concepts.push(clean);
+      }
+    }
+  }
+
+  // Look for bullet points or numbered lists
+  const bulletLines = lines.filter(l => /^[-*•]\s+/.test(l) || /^\d+\.\s+/.test(l));
+  for (const bl of bulletLines) {
+    const clean = bl.replace(/^[-*•\d.]+\s*/, "").split(/[:\-–—]/)[0].trim();
+    if (clean.length > 3 && clean.length < 40 && !conceptSet.has(clean.toLowerCase())) {
+      conceptSet.add(clean.toLowerCase());
+      concepts.push(clean);
+    }
+  }
+
+  // Look for Capitalized Key Phrases (e.g. Supervised Learning, Loss Function, Gradient Descent)
+  const capMatches = text.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}\b/g);
+  if (capMatches) {
+    for (const cm of capMatches) {
+      const clean = cm.trim();
+      if (clean.length > 4 && clean.length < 35 && !conceptSet.has(clean.toLowerCase())) {
+        if (!/^(This Document|The Following|In This|For Example|As Mentioned|We Can|It Is|There Are|Please Note)\b/i.test(clean)) {
+          conceptSet.add(clean.toLowerCase());
+          concepts.push(clean);
+        }
+      }
+    }
+  }
+
+  // Ensure we have at least 4 concepts
+  if (concepts.length < 4) {
+    concepts.push(`${detectedTopic} Architecture`);
+    concepts.push(`${detectedTopic} Core Rules`);
+    concepts.push(`${detectedTopic} Practical Analysis`);
+    concepts.push(`${detectedTopic} Edge Cases`);
+  }
+
+  // 3. Extract or synthesize document-grounded sections
+  const sections: Array<{ title: string; concept: string; summary: string }> = [];
+  const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 20);
+
+  const maxSections = Math.min(5, Math.max(3, concepts.length));
+  for (let i = 0; i < maxSections; i++) {
+    const concept = concepts[i] || `${detectedTopic} Part ${i + 1}`;
+    const relatedPara = paragraphs.find(p => p.toLowerCase().includes(concept.toLowerCase())) || paragraphs[i] || "";
+    const summary = relatedPara 
+      ? relatedPara.slice(0, 180).replace(/\s+[^ ]*$/, "...")
+      : `Examine the operational principles and theoretical underpinnings of ${concept} in ${detectedTopic}.`;
+    
+    sections.push({
+      title: `${concept}: Principles & Dynamics`,
+      concept,
+      summary,
+    });
+  }
+
+  return { detectedTopic, concepts: concepts.slice(0, 8), sections };
 }
 
 // Helper: build strict language enforcement instructions
@@ -830,69 +937,43 @@ Follow this JSON schema strictly:
       }
     }
 
-    // High-quality dynamic fallback tailored to the user's specific domain
-    const meta = inferSubjectMetadata(targetTopic);
+    // High-quality dynamic fallback grounded in uploaded documentText and user inputs
+    const insights = extractDocumentInsights(documentText, targetTopic);
+    const resolvedTopic = insights.detectedTopic || targetTopic;
+    const meta = inferSubjectMetadata(resolvedTopic, documentText);
     const minutes = parseInt(userTime) || 20;
 
+    const sections = insights.sections.map((sec, idx) => {
+      const isFirst = idx === 0;
+      const isLast = idx === insights.sections.length - 1;
+      let vType = meta.visualType;
+      if (isLast) vType = "timeline";
+      else if (idx === 1 && meta.visualType === "code") vType = "code";
+
+      return {
+        id: `sec-${idx + 1}`,
+        title: sec.title,
+        duration: `${Math.max(3, Math.round(minutes / insights.sections.length))} mins`,
+        summary: sec.summary,
+        keyConcept: sec.concept,
+        visualType: vType,
+        interactivePrompt: isFirst
+          ? `Explore the interactive visual model of ${sec.concept} on your whiteboard.`
+          : isLast
+          ? `Verify mastery synthesis for ${sec.concept} with interactive checkpoint controls.`
+          : `Manipulate parameters for ${sec.concept} to observe cause-and-effect transitions.`,
+      };
+    });
+
     const fallbackPlan = {
-      topic: targetTopic,
+      topic: resolvedTopic,
       subject: meta.subject,
       estimatedMinutes: minutes,
       level: userLevel,
-      objective: `Master the core principles, key mechanics, and practical applications of ${targetTopic}.`,
-      prerequisites: ["Elementary fundamentals", "General foundational curiosity"],
-      sections: [
-        {
-          id: "sec-1",
-          title: `Introduction & Conceptual Intuition: ${targetTopic}`,
-          duration: `${Math.max(2, Math.round(minutes * 0.15))} mins`,
-          summary: `Establishing core definitions, physical or logical intuition, and fundamental architecture of ${targetTopic}.`,
-          keyConcept: `${targetTopic} Basics`,
-          visualType: meta.visualType,
-          interactivePrompt: `Explore the foundational visual model of ${targetTopic}.`,
-        },
-        {
-          id: "sec-2",
-          title: `Core Rules, Mechanics & Structure`,
-          duration: `${Math.max(3, Math.round(minutes * 0.25))} mins`,
-          summary: `Deep dive into the underlying rules, operations, and governing laws of ${targetTopic}.`,
-          keyConcept: "Governing Principles & Architecture",
-          visualType: meta.visualType,
-          interactivePrompt: "Observe how primary parameters interact and influence outcomes.",
-        },
-        {
-          id: "sec-3",
-          title: `Hands-On Demonstration & Interactive Case Study`,
-          duration: `${Math.max(4, Math.round(minutes * 0.3))} mins`,
-          summary: `Step-by-step interactive demonstration exploring practical scenarios and dynamic state changes.`,
-          keyConcept: "Applied Simulation & Problem Solving",
-          visualType: meta.visualType,
-          interactivePrompt: "Manipulate the interactive controls to test cause-and-effect.",
-        },
-        {
-          id: "sec-4",
-          title: `Common Misconceptions & Edge Cases`,
-          duration: `${Math.max(3, Math.round(minutes * 0.2))} mins`,
-          summary: `Diagnosing frequent beginner pitfalls and clarifying subtle conceptual distinctions.`,
-          keyConcept: "Critical Analysis & Remediation",
-          visualType: meta.visualType === "circuit" ? "circuit" : "diagram",
-          interactivePrompt: "Identify boundary cases and verify your conceptual mental model.",
-        },
-        {
-          id: "sec-5",
-          title: `Synthesis, Knowledge Check & Next Steps`,
-          duration: `${Math.max(2, Math.round(minutes * 0.1))} mins`,
-          summary: `Summarizing key learning milestones and preparing for the mastery assessment.`,
-          keyConcept: "Mastery Integration",
-          visualType: "timeline",
-          interactivePrompt: "Review your performance diagnostic and unlock advanced milestones.",
-        },
-      ],
-      learningOutcomes: [
-        `Understand the core definitions and mental models of ${targetTopic}`,
-        `Apply key principles to predict and solve practical problems in ${targetTopic}`,
-        "Identify and avoid common conceptual misconceptions",
-      ],
+      objective: `Master the core principles, key mechanics, and practical applications of ${resolvedTopic} extracted from your study material.`,
+      prerequisites: [`Foundational interest in ${meta.subject}`, "General analytical curiosity"],
+      sections,
+      learningOutcomes: insights.concepts.slice(0, 3).map((c) => `Understand and apply ${c} in practical problem-solving`),
     };
 
     res.json({ success: true, lessonPlan: fallbackPlan, isFallback: true });
@@ -1019,49 +1100,57 @@ Output JSON format strictly:
     }
 
     // Dynamic Subject-Aware High-Quality Fallback Scenes
-    const meta = inferSubjectMetadata(currentTopic);
+    const meta = inferSubjectMetadata(currentTopic, documentText);
     let fallbackScenes: any[] = [];
 
-    // If a custom lesson plan was provided, dynamically generate matching scenes for every section
-    if (hasPlannedSections) {
-      fallbackScenes = lessonPlan.sections.map((sec: any, idx: number) => {
+    // If a custom lesson plan was provided OR documentText was uploaded, dynamically generate matching scenes
+    const docInsights = extractDocumentInsights(documentText, currentTopic);
+    const effectiveSections = hasPlannedSections
+      ? lessonPlan.sections
+      : (documentText && documentText.trim().length > 10)
+      ? docInsights.sections
+      : null;
+
+    if (effectiveSections && effectiveSections.length > 0) {
+      fallbackScenes = effectiveSections.map((sec: any, idx: number) => {
         const vType = sec.visualType || meta.visualType;
         const isCode = vType === "code";
         const isTimeline = vType === "timeline";
         const isFormula = vType === "formula";
         const isCircuit = vType === "circuit";
+        const conceptName = sec.keyConcept || sec.concept || `${currentTopic} Part ${idx + 1}`;
 
         return {
           id: idx + 1,
           title: sec.title,
-          concept: sec.keyConcept,
-          teacherScript: `Welcome to Lesson ${idx + 1}: "${sec.title}". In this module, we explore the core mechanics of ${sec.keyConcept}. ${sec.summary} Notice how our interactive whiteboard demonstrates these principles in real-time. Use the controls to test your intuition.`,
-          subtitles: `Lesson ${idx + 1}: ${sec.title}. Exploring ${sec.keyConcept} at the ${userLevel} level.`,
+          concept: conceptName,
+          teacherScript: `Welcome to Lesson ${idx + 1}: "${sec.title}". In this module, we explore the core mechanics of ${conceptName}. ${sec.summary || ""} Notice how our interactive whiteboard demonstrates these principles in real-time. Use the controls to test your intuition.`,
+          subtitles: `Lesson ${idx + 1}: ${sec.title}. Exploring ${conceptName} at the ${userLevel} level.`,
           visualType: vType,
           teacherPose: idx % 2 === 0 ? "explaining" : "demonstrating",
-          analogy: `Think of ${sec.keyConcept} as a balanced regulatory feedback loop: altering any input immediately shifts equilibrium across the whole system.`,
+          analogy: `Think of ${conceptName} as a balanced regulatory feedback loop: altering any input immediately shifts equilibrium across the whole system.`,
           keyPoints: [
-            `${sec.keyConcept} establishes the governing dynamics in this lesson`,
+            `${conceptName} establishes the governing dynamics in this lesson`,
             `At the ${userLevel} tier, testing boundary conditions solidifies understanding`,
             `Verify the cause-and-effect relationship on your interactive whiteboard`,
           ],
           stepBreakdown: [
-            { stepNumber: 1, title: "Input Configuration", description: `Initialize baseline constraints for ${sec.keyConcept}.`, example: "State initialized" },
+            { stepNumber: 1, title: "Input Configuration", description: `Initialize baseline constraints for ${conceptName}.`, example: "State initialized" },
             { stepNumber: 2, title: "Transformation & Flow", description: `Observe state transitions and operational throughput.`, example: "Active processing" },
             { stepNumber: 3, title: "Verification & Equilibrium", description: `Confirm outcomes adhere to governing rules.`, example: "Equilibrium verified" },
           ],
           microQuiz: {
-            question: `In "${sec.title}", what is the primary role of ${sec.keyConcept}?`,
+            question: `In "${sec.title}", what is the primary role of ${conceptName}?`,
             options: [
               "It governs systematic throughput and provides predictable cause-and-effect",
               "It has zero functional influence on the system",
               "It permanently shuts down all operations randomly",
             ],
             correctIndex: 0,
-            explanation: `Understanding ${sec.keyConcept} enables precise prediction and control over system behavior.`,
+            explanation: `Understanding ${conceptName} enables precise prediction and control over system behavior.`,
           },
           commonMistake: {
-            misconception: `Viewing ${sec.keyConcept} in isolation rather than within its broader system context.`,
+            misconception: `Viewing ${conceptName} in isolation rather than within its broader system context.`,
             correction: `Always evaluate parameters in coordination with neighboring inputs and constraints.`,
           },
           ...(isCode
@@ -1624,24 +1713,34 @@ Output JSON format strictly:
       }
     }
 
-    // Dynamic Heuristic Fallback Questions grounded directly in user inputs / lessonPlan
-    const meta = inferSubjectMetadata(currentTopic);
+    // Dynamic Heuristic Fallback Questions grounded directly in user inputs / lessonPlan / documentText
+    const meta = inferSubjectMetadata(currentTopic, documentText);
+    const docInsights = extractDocumentInsights(documentText, currentTopic);
     let fallbackQuestions: any[] = [];
 
-    if (lessonPlan && Array.isArray(lessonPlan.sections) && lessonPlan.sections.length > 0) {
-      fallbackQuestions = lessonPlan.sections.map((sec: any, idx: number) => ({
-        id: `q${idx + 1}`,
-        concept: sec.keyConcept || sec.title,
-        question: `In "${sec.title}", what is the primary role of ${sec.keyConcept}?`,
-        options: [
-          { key: "A", text: `It acts as the core governing mechanism for ${sec.keyConcept.toLowerCase()}` },
-          { key: "B", text: "It overrides and eliminates all other system components" },
-          { key: "C", text: "It randomly resets parameters without evaluation" },
-          { key: "D", text: `It has zero functional influence on ${currentTopic}` },
-        ],
-        correctAnswer: "A",
-        explanation: `In this module on ${currentTopic}, ${sec.keyConcept} establishes the fundamental operational dynamics.`,
-      }));
+    const effectiveSections = (lessonPlan && Array.isArray(lessonPlan.sections) && lessonPlan.sections.length > 0)
+      ? lessonPlan.sections
+      : (documentText && documentText.trim().length > 10)
+      ? docInsights.sections
+      : null;
+
+    if (effectiveSections && effectiveSections.length > 0) {
+      fallbackQuestions = effectiveSections.map((sec: any, idx: number) => {
+        const cName = sec.keyConcept || sec.concept || sec.title;
+        return {
+          id: `q${idx + 1}`,
+          concept: cName,
+          question: `Regarding "${sec.title}", which statement most accurately characterizes ${cName}?`,
+          options: [
+            { key: "A", text: `It serves as an essential governing principle for understanding ${cName}` },
+            { key: "B", text: "It completely overrides and eliminates all other components" },
+            { key: "C", text: "It produces purely erratic outputs without predictable causal rules" },
+            { key: "D", text: `It holds zero relevance to practical problems in ${currentTopic}` },
+          ],
+          correctAnswer: "A",
+          explanation: `In this module on ${currentTopic}, ${cName} establishes the fundamental operational dynamics.`,
+        };
+      });
     } else if (meta.visualType === "code") {
       fallbackQuestions = [
         {
@@ -2213,7 +2312,7 @@ Output JSON format:
 // Dynamic Subject-Aware Curriculum Roadmap Agent
 app.post("/api/lesson/roadmap", async (req, res) => {
   try {
-    const { topic, level, assessmentScore, weakAreas, strongAreas, documentSections, language } = req.body;
+    const { topic, level, assessmentScore, weakAreas, strongAreas, documentSections, documentText, lessonPlan, language } = req.body;
     const currentTopic = topic || "Foundational Curriculum";
     const userScore = assessmentScore ?? 80;
     const lang = language || "English";
@@ -2225,6 +2324,7 @@ Language: "${lang}"
 ${getStrictLanguageRule(lang)}
 Weak Areas: ${JSON.stringify(weakAreas || [])}
 Strong Areas: ${JSON.stringify(strongAreas || [])}
+${documentText ? `Uploaded Material Context:\n${documentText.slice(0, 3000)}\n` : ""}
 ${documentSections ? `Document Sections: ${JSON.stringify(documentSections)}\n` : ""}
 
 Generate a tailored sequential syllabus. If the student has weak areas, insert an adaptive remediation node.
@@ -2254,19 +2354,24 @@ Output JSON format strictly:
       }
     }
 
-    // Dynamic Roadmap Fallback
+    // Dynamic Roadmap Fallback grounded in lessonPlan and uploaded document
     const isMastered = userScore >= 75;
+    const docInsights = extractDocumentInsights(documentText, currentTopic);
+    const sections = (lessonPlan && Array.isArray(lessonPlan.sections) && lessonPlan.sections.length > 0)
+      ? lessonPlan.sections
+      : docInsights.sections;
+
     const fallbackNodes = [
       {
         id: "n1",
-        title: `Foundations of ${currentTopic}`,
+        title: sections[0]?.title || `Foundations of ${currentTopic}`,
         status: "mastered",
-        icon: "bolt",
+        icon: "check_circle",
         info: "100% Mastery • Completed foundational definitions and mental models.",
       },
       {
         id: "n2",
-        title: `Core Principles & Rules in ${currentTopic}`,
+        title: sections[1]?.title || `Core Principles & Rules in ${currentTopic}`,
         status: isMastered ? "mastered" : "needs_review",
         icon: isMastered ? "verified" : "psychology",
         info: isMastered
@@ -2287,21 +2392,21 @@ Output JSON format strictly:
         : []),
       {
         id: "n3",
-        title: `Applied Problem Solving & Advanced Techniques`,
+        title: sections[2]?.title || `Applied Problem Solving & Analysis in ${currentTopic}`,
         status: isMastered ? "in_progress" : "upcoming",
         icon: "alt_route",
         info: isMastered ? "Active next module • Estimated 15 minutes" : `Unlocks after mastering ${currentTopic} foundations`,
       },
       {
         id: "n4",
-        title: `Complex Scenarios & Real-World Integration`,
+        title: sections[3]?.title || `Complex Scenarios & Real-World Integration`,
         status: "upcoming",
         icon: "device_hub",
         info: "Architectural synthesis, multi-variable constraints, and case studies.",
       },
       {
         id: "n5",
-        title: `Mastery Capstone & Synthesis`,
+        title: `Mastery Capstone & Synthesis: ${currentTopic}`,
         status: "upcoming",
         icon: "military_tech",
         info: "Comprehensive cross-topic evaluation and practical project verification.",

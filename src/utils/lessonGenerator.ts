@@ -36,16 +36,118 @@ export function inferTopicDomain(topicOrText: string): DomainMetadata {
   return { subject: 'Foundational Studies', category: 'general', defaultVisualType: 'diagram' };
 }
 
+// Helper: extract structured learning insights and sections from raw uploaded text client-side
+export function extractClientDocumentInsights(documentText?: string, fallbackTopic?: string): {
+  topic: string;
+  concepts: string[];
+  sections: Array<{ title: string; concept: string; summary: string }>;
+} {
+  const text = (documentText || '').trim();
+  const defTopic = fallbackTopic || 'Curriculum Subject';
+  if (!text) {
+    return {
+      topic: defTopic,
+      concepts: [`${defTopic} Foundations`, `${defTopic} Mechanics`, `${defTopic} Applications`, `${defTopic} Analysis`],
+      sections: [
+        { title: `Foundations of ${defTopic}`, concept: `${defTopic} Fundamentals`, summary: `Core definitions and introductory concepts.` },
+        { title: `Mechanisms & Structure in ${defTopic}`, concept: 'Structural Dynamics', summary: `Key operations, constraints, and relationships.` },
+        { title: `Applied Practice & Analysis`, concept: 'Applied Methodology', summary: `Real-world examples and worked problem scenarios.` },
+        { title: `Synthesis & Integration`, concept: 'Mastery Integration', summary: `Consolidation of insights and evaluation.` },
+      ],
+    };
+  }
+
+  const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+  let detectedTopic = fallbackTopic || '';
+  if (!detectedTopic || /upload|document|lecture|notes|chapter|foundational|custom|physics_circuits/i.test(detectedTopic)) {
+    const headingCandidate = lines.find((l) => /^#+\s+/.test(l) || /^(chapter|unit|topic|lecture|lesson)\s+/i.test(l));
+    if (headingCandidate) {
+      detectedTopic = headingCandidate.replace(/^[#\s\-*:]+/, '').replace(/^(chapter|unit|topic|lecture|lesson)\s*[\d.:\-]*\s*/i, '').trim();
+    } else if (lines.length > 0 && lines[0].length < 60) {
+      detectedTopic = lines[0].replace(/^[#\s\-*:]+/, '').trim();
+    }
+  }
+  if (!detectedTopic) detectedTopic = defTopic;
+
+  const concepts: string[] = [];
+  const conceptSet = new Set<string>();
+
+  const boldMatches = text.match(/\*\*([^*]{3,40})\*\*/g);
+  if (boldMatches) {
+    for (const bm of boldMatches) {
+      const clean = bm.replace(/\*\*/g, '').trim();
+      if (clean && !conceptSet.has(clean.toLowerCase()) && clean.length < 35) {
+        conceptSet.add(clean.toLowerCase());
+        concepts.push(clean);
+      }
+    }
+  }
+
+  const bulletLines = lines.filter((l) => /^[-*•]\s+/.test(l) || /^\d+\.\s+/.test(l));
+  for (const bl of bulletLines) {
+    const clean = bl.replace(/^[-*•\d.]+\s*/, '').split(/[:\-–—]/)[0].trim();
+    if (clean.length > 3 && clean.length < 40 && !conceptSet.has(clean.toLowerCase())) {
+      conceptSet.add(clean.toLowerCase());
+      concepts.push(clean);
+    }
+  }
+
+  const capMatches = text.match(/\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}\b/g);
+  if (capMatches) {
+    for (const cm of capMatches) {
+      const clean = cm.trim();
+      if (clean.length > 4 && clean.length < 35 && !conceptSet.has(clean.toLowerCase())) {
+        if (!/^(This Document|The Following|In This|For Example|As Mentioned|We Can|It Is|There Are|Please Note)\b/i.test(clean)) {
+          conceptSet.add(clean.toLowerCase());
+          concepts.push(clean);
+        }
+      }
+    }
+  }
+
+  if (concepts.length < 4) {
+    concepts.push(`${detectedTopic} Architecture`);
+    concepts.push(`${detectedTopic} Core Rules`);
+    concepts.push(`${detectedTopic} Practical Analysis`);
+    concepts.push(`${detectedTopic} Edge Cases`);
+  }
+
+  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 20);
+  const maxSections = Math.min(5, Math.max(3, concepts.length));
+  const sections: Array<{ title: string; concept: string; summary: string }> = [];
+
+  for (let i = 0; i < maxSections; i++) {
+    const concept = concepts[i] || `${detectedTopic} Part ${i + 1}`;
+    const relatedPara = paragraphs.find((p) => p.toLowerCase().includes(concept.toLowerCase())) || paragraphs[i] || '';
+    const summary = relatedPara
+      ? relatedPara.slice(0, 180).replace(/\s+[^ ]*$/, '...')
+      : `Examine the operational principles and theoretical underpinnings of ${concept} in ${detectedTopic}.`;
+
+    sections.push({
+      title: `${concept}: Principles & Dynamics`,
+      concept,
+      summary,
+    });
+  }
+
+  return { topic: detectedTopic, concepts: concepts.slice(0, 8), sections };
+}
+
 /**
  * Builds a comprehensive, input-aware LessonPlan based on the user's setup choices.
  */
 export function buildDynamicLessonPlan(formState?: Partial<PersonalizeFormState>): LessonPlan {
-  const topic = formState?.topicText || (formState?.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Subject') : 'Fundamental Concepts');
+  const rawTopic = formState?.topicText || (formState?.sourceMaterial === 'upload' ? (formState.uploadedFileName?.replace(/\.[^/.]+$/, '') || 'Custom Subject') : 'Fundamental Concepts');
   const level = formState?.currentLevel || 'Intermediate';
   const time = formState?.timeAvailable || '20m';
   const minutes = parseInt(time) || 20;
   const style = formState?.teachingStyle || 'conceptual';
-  const domain = inferTopicDomain(topic);
+
+  // If uploaded content exists, extract grounded concepts and outline from the document
+  const hasUploadedDoc = Boolean(formState?.uploadedFileContent && formState.uploadedFileContent.trim().length > 15);
+  const docInsights = hasUploadedDoc ? extractClientDocumentInsights(formState?.uploadedFileContent, rawTopic) : null;
+  const topic = docInsights?.topic || rawTopic;
+  const domain = inferTopicDomain(hasUploadedDoc ? `${topic} ${formState?.uploadedFileContent?.slice(0, 500)}` : topic);
 
   // Parse time allocation into realistic section durations
   const d1 = `${Math.max(2, Math.round(minutes * 0.18))} mins`;
@@ -56,7 +158,29 @@ export function buildDynamicLessonPlan(formState?: Partial<PersonalizeFormState>
 
   let sections: LessonPlanSection[] = [];
 
-  if (domain.category === 'code') {
+  // Ground directly in uploaded document if available
+  if (docInsights && docInsights.sections.length > 0) {
+    sections = docInsights.sections.map((sec, idx) => {
+      const isFirst = idx === 0;
+      const isLast = idx === docInsights.sections.length - 1;
+      let vType: VisualMode = domain.defaultVisualType;
+      if (isLast) vType = 'timeline';
+
+      return {
+        id: `sec-${idx + 1}`,
+        title: sec.title,
+        duration: `${Math.max(2, Math.round(minutes / docInsights.sections.length))} mins`,
+        summary: sec.summary,
+        keyConcept: sec.concept,
+        visualType: vType,
+        interactivePrompt: isFirst
+          ? `Explore the interactive visual model of ${sec.concept} on your whiteboard.`
+          : isLast
+          ? `Verify mastery synthesis for ${sec.concept} with interactive checkpoint controls.`
+          : `Manipulate parameters for ${sec.concept} to observe cause-and-effect transitions.`,
+      };
+    });
+  } else if (domain.category === 'code') {
     sections = [
       {
         id: 'sec-1',
