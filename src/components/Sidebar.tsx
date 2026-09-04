@@ -21,15 +21,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentScreen, onNavigate, dar
     >
       {/* Tutor Profile Header */}
       <div className="flex items-center gap-3 mb-2 px-2 pt-2">
-        <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-[#6063ee] shrink-0">
+        <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-[#6063ee] shrink-0 bg-[#6063ee]/10 shadow-sm">
           <img
             alt="Nova AI Teacher"
-            className="w-full h-full object-cover object-top"
-            src={dark ? ASSETS.sidebarNova : ASSETS.pathNova}
+            className="w-full h-full object-cover object-center"
+            src="/assets/nova-ai-avatar.jpg"
+            loading="eager"
             referrerPolicy="no-referrer"
             onError={(e) => {
-              // Fallback to secondary high-reliability portrait if primary fails
-              e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80";
+              // Fallback to primary AI Teacher artwork if local fails
+              e.currentTarget.src = ASSETS.heroNova;
             }}
           />
         </div>
