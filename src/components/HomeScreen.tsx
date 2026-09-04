@@ -636,7 +636,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
             {/* Engine Pillar 4 */}
             <div className="bg-white p-6 rounded-2xl shadow-xs border border-[#c7c4d7]/60 flex flex-col h-full hover:-translate-y-1 transition-transform duration-300">
               <div className="w-12 h-12 rounded-xl bg-[#d97706]/15 flex items-center justify-center text-[#d97706] mb-4">
-                <span className="material-symbols-outlined text-[26px]">diagnostics</span>
+                <span id="pillar-remediation-icon" className="material-symbols-outlined text-[26px]">troubleshoot</span>
               </div>
               <h3 className="text-base font-bold text-[#131b2e] mb-2">Adaptive Remediation</h3>
               <p className="text-xs text-[#464554] leading-relaxed flex-grow">
