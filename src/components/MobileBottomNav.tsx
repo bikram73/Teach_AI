@@ -8,7 +8,7 @@ interface MobileBottomNavProps {
 }
 
 export const MobileBottomNav: React.FC<MobileBottomNavProps> = ({ currentScreen, onNavigate, dark = false }) => {
-  const isLearnActive = ['classroom', 'personalize', 'question', 'adaptive'].includes(currentScreen);
+  const isLearnActive = ['classroom', 'planning', 'question'].includes(currentScreen);
 
   return (
     <nav

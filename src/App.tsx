@@ -11,7 +11,7 @@ import { HistoryScreen } from './components/HistoryScreen';
 import { TopNav } from './components/TopNav';
 import { MobileBottomNav } from './components/MobileBottomNav';
 import { UserNameModal } from './components/UserNameModal';
-import { getStoredUserName, saveStoredUserName } from './utils/userStorage';
+import { getStoredUserName, saveStoredUserName, getStoredLanguage, saveStoredLanguage } from './utils/userStorage';
 import { addActivityEvent } from './utils/historyStorage';
 import { LessonPlan, PersonalizeFormState, ScreenType, UserAssessmentSummary } from './types';
 
@@ -30,7 +30,7 @@ export default function App() {
     currentLevel: 'Intermediate',
     primaryGoal: 'Fundamentals',
     timeAvailable: '20m',
-    language: 'English',
+    language: getStoredLanguage(),
     teachingStyle: 'conceptual',
   });
   const [lessonPlan, setLessonPlan] = useState<LessonPlan | undefined>(undefined);
@@ -116,6 +116,11 @@ export default function App() {
         onNavigate={handleProtectedNavigate} 
         userName={userName}
         onOpenNameModal={handleOpenEditNameModal}
+        currentLanguage={formState.language}
+        onLanguageChange={(newLang) => {
+          saveStoredLanguage(newLang);
+          setFormState(prev => ({ ...prev, language: newLang }));
+        }}
       />
 
       {/* Screen Quick Switcher Ribbon */}
