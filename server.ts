@@ -104,30 +104,52 @@ function extractPromptString(contents: any): string {
   return String(contents || "");
 }
 
-// 1. Tier 1: Gemini (Google GenAI)
+// Cooldown tracking for rate-limited/quota-exhausted models
+const modelCooldownMap = new Map<string, number>();
+
+function isModelInCooldown(model: string): boolean {
+  const until = modelCooldownMap.get(model);
+  if (!until) return false;
+  if (Date.now() > until) {
+    modelCooldownMap.delete(model);
+    return false;
+  }
+  return true;
+}
+
+function setModelCooldown(model: string, durationMs: number = 15 * 60 * 1000) {
+  modelCooldownMap.set(model, Date.now() + durationMs);
+}
+
+// 1. Tier 1: Primary GenAI Engine
 async function generateWithGemini(
   contents: any,
   config: any = {},
-  preferredModel = "gemini-3.8-flash"
+  preferredModel = "gemini-3.1-flash-lite"
 ): Promise<{ text: string; modelUsed: string; provider: string } | null> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey === "dummy-key") return null;
 
   const ai = getGemini();
-  const candidateModels = [
+  const allCandidateModels = [
     preferredModel,
-    "gemini-3.8-flash",
-    "gemini-3.6-flash",
-    "gemini-flash-latest",
     "gemini-3.1-flash-lite",
+    "gemini-flash-latest",
+    "gemini-3.8-flash",
+    "gemini-3.1-pro-preview",
   ].filter((m, i, arr) => arr.indexOf(m) === i);
+
+  // Prioritize models that are not currently rate-limited or in cooldown
+  const activeModels = allCandidateModels.filter((m) => !isModelInCooldown(m));
+  const coolingModels = allCandidateModels.filter((m) => isModelInCooldown(m));
+  const candidateModels = activeModels.length > 0 ? activeModels : coolingModels;
 
   for (const model of candidateModels) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        // Enforce a strict 12s timeout so Gemini doesn't block downstream fallbacks
+        // Enforce a strict 12s timeout so requests don't block downstream fallbacks
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`Gemini ${model} request timed out after 12s`)), 12000)
+          setTimeout(() => reject(new Error(`Model ${model} request timed out after 12s`)), 12000)
         );
 
         const responsePromise = ai.models.generateContent({
@@ -142,23 +164,42 @@ async function generateWithGemini(
           return { text: response.text, modelUsed: "TeachAI Core", provider: "primary" };
         }
       } catch (err: any) {
-        const isUnavailableOrRateLimit =
-          err?.status === 503 ||
-          err?.code === 503 ||
+        const errMsg = err?.message || String(err || "");
+        const isQuotaOrRateLimit =
           err?.status === 429 ||
           err?.code === 429 ||
-          err?.message?.includes("503") ||
-          err?.message?.includes("timed out") ||
-          err?.message?.includes("high demand") ||
-          err?.message?.includes("UNAVAILABLE") ||
-          err?.message?.includes("RESOURCE_EXHAUSTED");
+          errMsg.includes("429") ||
+          errMsg.includes("quota") ||
+          errMsg.includes("RESOURCE_EXHAUSTED");
+        const isTransient503 =
+          err?.status === 503 ||
+          err?.code === 503 ||
+          errMsg.includes("503") ||
+          errMsg.includes("high demand") ||
+          errMsg.includes("timed out") ||
+          errMsg.includes("UNAVAILABLE");
 
-        if (isUnavailableOrRateLimit && attempt < 1) {
+        if (isQuotaOrRateLimit) {
+          // Parse retry delay if provided, otherwise default to 15 minutes cooldown for daily quota limits
+          let cooldownMs = 15 * 60 * 1000;
+          const retryMatch = errMsg.match(/retry in\s+([\d.]+)s/i) || errMsg.match(/retryDelay["']?:\s*["']?(\d+)s/i);
+          if (retryMatch && retryMatch[1]) {
+            const seconds = parseFloat(retryMatch[1]);
+            if (!isNaN(seconds) && seconds > 0) {
+              cooldownMs = Math.max(seconds * 1000, 30000);
+            }
+          }
+          setModelCooldown(model, cooldownMs);
+          console.log(`[AI Orchestrator] Model ${model} is rate-limited; seamlessly transitioning to next engine.`);
+          break; // Do not retry on the exact same model when rate-limited
+        }
+
+        if (isTransient503 && attempt < 1) {
           await new Promise((resolve) => setTimeout(resolve, 300 + Math.random() * 200));
           continue;
         }
 
-        console.warn(`[Gemini Failover] ${model} unavailable or failed:`, err?.message || err);
+        console.log(`[AI Orchestrator] Model ${model} unavailable (${err?.status || err?.code || "network"}); checking fallback engines.`);
         break;
       }
     }
@@ -167,7 +208,7 @@ async function generateWithGemini(
   return null;
 }
 
-// 2. Tier 2: OpenRouter (Fallback if Gemini fails or is unconfigured)
+// 2. Tier 2: OpenRouter (Fallback if Primary fails or is unconfigured)
 async function generateWithOpenRouter(
   prompt: string,
   config: any = {}
@@ -179,9 +220,9 @@ async function generateWithOpenRouter(
 
   const candidateModels = [
     process.env.OPENROUTER_MODEL,
-    "google/gemini-2.0-flash-001",
     "meta-llama/llama-3.3-70b-instruct",
     "mistralai/mistral-small-24b-instruct-2501",
+    "google/gemini-2.0-flash-001",
   ].filter(Boolean) as string[];
 
   const isJson = config?.responseMimeType === "application/json";
@@ -217,7 +258,7 @@ async function generateWithOpenRouter(
 
       if (!res.ok) {
         const errorText = await res.text().catch(() => "");
-        console.warn(`[OpenRouter Failover] Status ${res.status} on model ${model}:`, errorText.slice(0, 200));
+        console.log(`[OpenRouter Orchestrator] Status ${res.status} on model ${model}:`, errorText.slice(0, 100));
         continue;
       }
 
@@ -225,30 +266,32 @@ async function generateWithOpenRouter(
       const text = data?.choices?.[0]?.message?.content;
 
       if (text && typeof text === "string" && text.trim().length > 0) {
-        return { text: text.trim(), modelUsed: model, provider: "openrouter" };
+        return { text: text.trim(), modelUsed: "TeachAI Core", provider: "openrouter" };
       }
     } catch (err: any) {
-      console.warn(`[OpenRouter Failover] Error on model ${model}:`, err?.message || err);
+      console.log(`[OpenRouter Orchestrator] Notice on model ${model}:`, err?.message || "network");
     }
   }
 
   return null;
 }
 
-// 3. Tier 3: Groq (Ultra-fast fallback if Gemini and OpenRouter both fail)
+// 3. Tier 3: Groq (Ultra-fast fallback if Primary and OpenRouter both fail)
 async function generateWithGroq(
   prompt: string,
   config: any = {}
 ): Promise<{ text: string; modelUsed: string; provider: string } | null> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
+  const rawKey = process.env.GROQ_API_KEY;
+  if (!rawKey) {
     return null;
   }
+  const apiKey = rawKey.replace(/^groq=/, "").trim();
 
   const candidateModels = [
     process.env.GROQ_MODEL,
-    "llama-3.3-70b-versatile",
-    "llama-3.1-8b-instant",
+    "qwen/qwen3.8-27b",
+    "openai/gpt-oss-120b",
+    "openai/gpt-oss-20b",
   ].filter(Boolean) as string[];
 
   const isJson = config?.responseMimeType === "application/json";
@@ -282,7 +325,7 @@ async function generateWithGroq(
 
       if (!res.ok) {
         const errorText = await res.text().catch(() => "");
-        console.warn(`[Groq Failover] Status ${res.status} on model ${model}:`, errorText.slice(0, 200));
+        console.log(`[Groq Orchestrator] Status ${res.status} on model ${model}:`, errorText.slice(0, 100));
         continue;
       }
 
@@ -290,59 +333,55 @@ async function generateWithGroq(
       const text = data?.choices?.[0]?.message?.content;
 
       if (text && typeof text === "string" && text.trim().length > 0) {
-        return { text: text.trim(), modelUsed: model, provider: "groq" };
+        return { text: text.trim(), modelUsed: "TeachAI Core", provider: "groq" };
       }
     } catch (err: any) {
-      console.warn(`[Groq Failover] Error on model ${model}:`, err?.message || err);
+      console.log(`[Groq Orchestrator] Notice on model ${model}:`, err?.message || "network");
     }
   }
 
   return null;
 }
 
-// Master AI Orchestrator with Strict Multi-Tier Fallback: Gemini -> OpenRouter -> Groq -> Heuristics
+// Master AI Orchestrator with Multi-Tier Cascade: Primary GenAI -> OpenRouter -> Groq -> Intelligent Domain Engine
 async function generateAIContent(
   contents: any,
   config: any = {},
-  preferredModel = "gemini-3.8-flash"
+  preferredModel = "gemini-3.1-flash-lite"
 ): Promise<{ text: string; modelUsed: string; provider: string } | null> {
-  // 1. Try Gemini
+  // 1. Try Primary GenAI
   try {
-    const geminiRes = await generateWithGemini(contents, config, preferredModel);
-    if (geminiRes) {
-      return geminiRes;
+    const primaryRes = await generateWithGemini(contents, config, preferredModel);
+    if (primaryRes) {
+      return primaryRes;
     }
   } catch (err: any) {
-    console.warn("[AI Fallback Pipeline] Gemini exception, transferring to OpenRouter...", err?.message);
+    console.log("[AI Pipeline] Primary engine notice, switching to Tier 2 OpenRouter...", err?.message || "");
   }
 
   // 2. Try OpenRouter
   try {
-    console.log("[AI Fallback Pipeline] Gemini unavailable or exhausted. Trying Tier 2: OpenRouter...");
     const promptString = extractPromptString(contents);
     const openRouterRes = await generateWithOpenRouter(promptString, config);
     if (openRouterRes) {
-      console.log(`[AI Fallback Pipeline] Handled by OpenRouter (${openRouterRes.modelUsed})`);
       return openRouterRes;
     }
   } catch (err: any) {
-    console.warn("[AI Fallback Pipeline] OpenRouter exception, transferring to Groq...", err?.message);
+    console.log("[AI Pipeline] OpenRouter notice, switching to Tier 3 Groq...", err?.message || "");
   }
 
   // 3. Try Groq
   try {
-    console.log("[AI Fallback Pipeline] OpenRouter unavailable or exhausted. Trying Tier 3: Groq...");
     const promptString = extractPromptString(contents);
     const groqRes = await generateWithGroq(promptString, config);
     if (groqRes) {
-      console.log(`[AI Fallback Pipeline] Handled by Groq (${groqRes.modelUsed})`);
       return groqRes;
     }
   } catch (err: any) {
-    console.warn("[AI Fallback Pipeline] Groq exception, falling back to intelligent heuristics...", err?.message);
+    console.log("[AI Pipeline] Groq notice, falling back to intelligent domain heuristics...", err?.message || "");
   }
 
-  console.log("[AI Fallback Pipeline] External providers unavailable. Using high-fidelity intelligent domain fallback.");
+  console.log("[AI Pipeline] Activating high-fidelity intelligent domain heuristics.");
   return null;
 }
 
