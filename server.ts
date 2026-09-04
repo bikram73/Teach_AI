@@ -218,16 +218,28 @@ async function generateWithOpenRouter(
     return null;
   }
 
+  // Sanitize environment model to filter out decommissioned endpoints (e.g. gemini-2.0-flash-001)
+  const rawEnvModel = process.env.OPENROUTER_MODEL?.trim();
+  const isObsoleteModel =
+    !rawEnvModel ||
+    rawEnvModel.includes("gemini-2.0") ||
+    rawEnvModel.includes("mistral-small-24b-instruct-2501");
+  const envModel = isObsoleteModel ? null : rawEnvModel;
+
   const candidateModels = [
-    process.env.OPENROUTER_MODEL,
+    envModel,
     "meta-llama/llama-3.3-70b-instruct",
-    "mistralai/mistral-small-24b-instruct-2501",
-    "google/gemini-2.0-flash-001",
+    "google/gemini-3.5-flash-lite",
+    "meta-llama/llama-3.1-8b-instruct",
   ].filter(Boolean) as string[];
+
+  // Filter out any models currently in cooldown
+  const activeModels = candidateModels.filter((m) => !isModelInCooldown(`openrouter:${m}`));
+  const modelsToTry = activeModels.length > 0 ? activeModels : candidateModels;
 
   const isJson = config?.responseMimeType === "application/json";
 
-  for (const model of candidateModels) {
+  for (const model of modelsToTry) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 12000);
@@ -236,6 +248,7 @@ async function generateWithOpenRouter(
         model,
         messages: [{ role: "user", content: prompt }],
         temperature: config?.temperature ?? 0.2,
+        max_tokens: config?.maxOutputTokens ?? 3000,
       };
 
       if (isJson) {
@@ -257,8 +270,10 @@ async function generateWithOpenRouter(
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        const errorText = await res.text().catch(() => "");
-        console.log(`[OpenRouter Orchestrator] Status ${res.status} on model ${model}:`, errorText.slice(0, 100));
+        // Cool down models with 404 (endpoint not found) or 402 (credit cap) or 429 (rate limit)
+        if (res.status === 404 || res.status === 402 || res.status === 429) {
+          setModelCooldown(`openrouter:${model}`, 24 * 60 * 60 * 1000);
+        }
         continue;
       }
 
@@ -268,8 +283,8 @@ async function generateWithOpenRouter(
       if (text && typeof text === "string" && text.trim().length > 0) {
         return { text: text.trim(), modelUsed: "TeachAI Core", provider: "openrouter" };
       }
-    } catch (err: any) {
-      console.log(`[OpenRouter Orchestrator] Notice on model ${model}:`, err?.message || "network");
+    } catch {
+      // Quiet failover to next model in pipeline
     }
   }
 
@@ -294,9 +309,13 @@ async function generateWithGroq(
     "openai/gpt-oss-20b",
   ].filter(Boolean) as string[];
 
+  // Filter out any models currently in cooldown
+  const activeModels = candidateModels.filter((m) => !isModelInCooldown(`groq:${m}`));
+  const modelsToTry = activeModels.length > 0 ? activeModels : candidateModels;
+
   const isJson = config?.responseMimeType === "application/json";
 
-  for (const model of candidateModels) {
+  for (const model of modelsToTry) {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 9000);
@@ -324,8 +343,9 @@ async function generateWithGroq(
       clearTimeout(timeoutId);
 
       if (!res.ok) {
-        const errorText = await res.text().catch(() => "");
-        console.log(`[Groq Orchestrator] Status ${res.status} on model ${model}:`, errorText.slice(0, 100));
+        if (res.status === 404 || res.status === 400 || res.status === 429) {
+          setModelCooldown(`groq:${model}`, 24 * 60 * 60 * 1000);
+        }
         continue;
       }
 
@@ -335,8 +355,8 @@ async function generateWithGroq(
       if (text && typeof text === "string" && text.trim().length > 0) {
         return { text: text.trim(), modelUsed: "TeachAI Core", provider: "groq" };
       }
-    } catch (err: any) {
-      console.log(`[Groq Orchestrator] Notice on model ${model}:`, err?.message || "network");
+    } catch {
+      // Quiet failover to next model in pipeline
     }
   }
 
