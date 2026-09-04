@@ -24,8 +24,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentScreen, onNavigate, dar
         <div className="w-11 h-11 rounded-full overflow-hidden border-2 border-[#6063ee] shrink-0">
           <img
             alt="Nova AI Teacher"
-            className="w-full h-full object-cover"
+            className="w-full h-full object-cover object-top"
             src={dark ? ASSETS.sidebarNova : ASSETS.pathNova}
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              // Fallback to secondary high-reliability portrait if primary fails
+              e.currentTarget.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80";
+            }}
           />
         </div>
         <div>
