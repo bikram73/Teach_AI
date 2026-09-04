@@ -164,9 +164,9 @@ export default function App() {
             lessonPlan={lessonPlan}
             activeSectionIndex={activeLessonIndex}
             onSelectSection={setActiveLessonIndex}
-            onStartLesson={(idx) => {
+            onStartLesson={(idx, targetScreen) => {
               setActiveLessonIndex(idx);
-              handleProtectedNavigate('classroom');
+              handleProtectedNavigate(targetScreen || 'classroom');
             }}
           />
         )}

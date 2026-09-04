@@ -10,8 +10,76 @@ interface PlanningScreenProps {
   lessonPlan?: LessonPlan;
   activeSectionIndex?: number;
   onSelectSection?: (index: number) => void;
-  onStartLesson?: (index: number) => void;
+  onStartLesson?: (index: number, targetScreen?: ScreenType) => void;
 }
+
+interface StepDestination {
+  screen: ScreenType;
+  label: string;
+  shortLabel: string;
+  icon: string;
+  badgeStyle: string;
+  buttonBg: string;
+  description: string;
+}
+
+const getStepDestination = (sec: any, idx: number, total: number): StepDestination => {
+  const text = `${sec?.title || ''} ${sec?.summary || ''} ${sec?.keyConcept || ''}`.toLowerCase();
+  
+  if (text.includes('quiz') || text.includes('assessment') || text.includes('diagnostic') || text.includes('knowledge check') || (total >= 4 && idx === total - 2)) {
+    return {
+      screen: 'question',
+      label: 'Diagnostic Quiz & Practice',
+      shortLabel: 'Practice Quiz',
+      icon: 'quiz',
+      badgeStyle: 'bg-emerald-50 text-emerald-700 border-emerald-300',
+      buttonBg: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+      description: 'Take an interactive diagnostic quiz tailored to this concept with instant evaluation.',
+    };
+  }
+
+  if (text.includes('adaptive') || text.includes('remediation') || text.includes('weak') || text.includes('drill')) {
+    return {
+      screen: 'adaptive',
+      label: 'Adaptive Remediation Drill',
+      shortLabel: 'Adaptive Drill',
+      icon: 'swap_calls',
+      badgeStyle: 'bg-amber-50 text-amber-700 border-amber-300',
+      buttonBg: 'bg-amber-600 hover:bg-amber-700 text-white',
+      description: 'Targeted reinforcement drills with personalized coaching for tricky edge cases.',
+    };
+  }
+
+  if (text.includes('roadmap') || text.includes('path') || text.includes('milestone') || text.includes('capstone') || idx === total - 1) {
+    return {
+      screen: 'path',
+      label: 'Curriculum Milestone Roadmap',
+      shortLabel: 'Milestone Path',
+      icon: 'alt_route',
+      badgeStyle: 'bg-violet-50 text-violet-700 border-violet-300',
+      buttonBg: 'bg-violet-600 hover:bg-violet-700 text-white',
+      description: 'Explore full multi-stage learning syllabus and track milestone mastery.',
+    };
+  }
+
+  return {
+    screen: 'classroom',
+    label: `AI Classroom (Lesson ${idx + 1})`,
+    shortLabel: `Classroom (L${idx + 1})`,
+    icon: 'school',
+    badgeStyle: 'bg-[#eff1ff] text-[#4648d4] border-[#c7c4d7]/60',
+    buttonBg: 'bg-[#4648d4] hover:bg-[#372abf] text-white',
+    description: `Enter the live interactive classroom with Teacher Nova and whiteboard for Lesson ${idx + 1}.`,
+  };
+};
+
+const destinationChoices: { id: ScreenType; label: string; icon: string; desc: string }[] = [
+  { id: 'classroom', label: 'Classroom', icon: 'school', desc: 'Whiteboard & Teacher Nova' },
+  { id: 'question', label: 'Quiz', icon: 'quiz', desc: 'Concept mastery assessment' },
+  { id: 'adaptive', label: 'Adaptive', icon: 'swap_calls', desc: 'Targeted drills & coaching' },
+  { id: 'path', label: 'Roadmap', icon: 'alt_route', desc: 'Full curriculum syllabus' },
+  { id: 'results', label: 'Progress', icon: 'leaderboard', desc: 'Scores & mastery analytics' },
+];
 
 export const PlanningScreen: React.FC<PlanningScreenProps> = ({
   onNavigate,
@@ -23,6 +91,7 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
 }) => {
   const [activeSection, setActiveSection] = useState<number>(activeSectionIndex);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [screenOverrides, setScreenOverrides] = useState<Record<number, ScreenType>>({});
 
   // Dynamic lesson plan built strictly from user inputs (topic, level, language, documentText, etc.)
   const plan: LessonPlan = customPlan || buildDynamicLessonPlan(formState);
@@ -32,17 +101,79 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
     if (onSelectSection) onSelectSection(idx);
   };
 
-  const handleStartClassroom = (targetIdx?: number) => {
-    const idx = targetIdx ?? activeSection;
+  const getActiveDestination = (idx: number): StepDestination => {
+    const defaultDest = getStepDestination(plan.sections[idx], idx, plan.sections.length);
+    const override = screenOverrides[idx];
+    if (!override || override === defaultDest.screen) {
+      return defaultDest;
+    }
+    switch (override) {
+      case 'classroom':
+        return {
+          screen: 'classroom',
+          label: `AI Classroom (Lesson ${idx + 1})`,
+          shortLabel: `Classroom (L${idx + 1})`,
+          icon: 'school',
+          badgeStyle: 'bg-[#eff1ff] text-[#4648d4] border-[#c7c4d7]/60',
+          buttonBg: 'bg-[#4648d4] hover:bg-[#372abf] text-white',
+          description: `Enter the live interactive classroom with Teacher Nova for Lesson ${idx + 1}.`,
+        };
+      case 'question':
+        return {
+          screen: 'question',
+          label: 'Diagnostic Quiz & Practice',
+          shortLabel: 'Practice Quiz',
+          icon: 'quiz',
+          badgeStyle: 'bg-emerald-50 text-emerald-700 border-emerald-300',
+          buttonBg: 'bg-emerald-600 hover:bg-emerald-700 text-white',
+          description: 'Jump straight to diagnostic questions evaluating this lesson concept.',
+        };
+      case 'adaptive':
+        return {
+          screen: 'adaptive',
+          label: 'Adaptive Remediation Drill',
+          shortLabel: 'Adaptive Drill',
+          icon: 'swap_calls',
+          badgeStyle: 'bg-amber-50 text-amber-700 border-amber-300',
+          buttonBg: 'bg-amber-600 hover:bg-amber-700 text-white',
+          description: 'Targeted reinforcement drills with personalized AI coaching.',
+        };
+      case 'path':
+        return {
+          screen: 'path',
+          label: 'Curriculum Milestone Roadmap',
+          shortLabel: 'Milestone Path',
+          icon: 'alt_route',
+          badgeStyle: 'bg-violet-50 text-violet-700 border-violet-300',
+          buttonBg: 'bg-violet-600 hover:bg-violet-700 text-white',
+          description: 'Explore full multi-stage learning syllabus and track milestone mastery.',
+        };
+      case 'results':
+        return {
+          screen: 'results',
+          label: 'Mastery Progress Analytics',
+          shortLabel: 'Progress',
+          icon: 'leaderboard',
+          badgeStyle: 'bg-indigo-50 text-indigo-700 border-indigo-300',
+          buttonBg: 'bg-indigo-600 hover:bg-indigo-700 text-white',
+          description: 'Inspect detailed performance scores and mastery breakdown.',
+        };
+      default:
+        return defaultDest;
+    }
+  };
+
+  const handleGoToPage = (targetIdx: number, targetScreen?: ScreenType) => {
+    const dest = targetScreen || getActiveDestination(targetIdx).screen;
     setIsGenerating(true);
     setTimeout(() => {
       setIsGenerating(false);
       if (onStartLesson) {
-        onStartLesson(idx);
+        onStartLesson(targetIdx, dest);
       } else {
-        onNavigate('classroom');
+        onNavigate(dest);
       }
-    }, 250);
+    }, 200);
   };
 
   const getVisualIcon = (type: string) => {
@@ -130,6 +261,7 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
             {plan.sections.map((sec, idx) => {
               const isSelected = activeSection === idx;
               const vIcon = getVisualIcon(sec.visualType);
+              const stepDest = getActiveDestination(idx);
               return (
                 <div
                   key={sec.id}
@@ -163,27 +295,30 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2 border-t border-[#c7c4d7]/30 text-[11px]">
-                    <span className="inline-flex items-center gap-1 text-[#4648d4] font-medium">
-                      <span className="material-symbols-outlined text-[14px]">{vIcon}</span>
-                      {sec.visualType.toUpperCase()}
-                    </span>
+                  <div className="flex items-center justify-between pt-2 border-t border-[#c7c4d7]/30 text-[11px] gap-2 flex-wrap">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="inline-flex items-center gap-1 text-[#4648d4] font-medium text-[10px]">
+                        <span className="material-symbols-outlined text-[13px]">{vIcon}</span>
+                        {sec.visualType.toUpperCase()}
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold border flex items-center gap-1 ${stepDest.badgeStyle}`}>
+                        <span className="material-symbols-outlined text-[12px]">{stepDest.icon}</span>
+                        {stepDest.shortLabel}
+                      </span>
+                    </div>
 
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleStartClassroom(idx);
+                        handleGoToPage(idx, stepDest.screen);
                       }}
-                      className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition-colors cursor-pointer ${
-                        isSelected
-                          ? 'bg-[#4648d4] text-white hover:bg-[#372abf]'
-                          : 'bg-[#f2f3ff] text-[#4648d4] hover:bg-[#e0e4ff]'
-                      }`}
-                      title={`Launch Classroom at Lesson ${idx + 1}`}
+                      className={`px-2.5 py-1 rounded-lg font-bold text-xs flex items-center gap-1 transition-all shadow-xs cursor-pointer ${stepDest.buttonBg}`}
+                      title={`Go to ${stepDest.label}`}
                     >
-                      <span className="material-symbols-outlined text-[14px]">play_arrow</span>
-                      Teach Lesson {idx + 1}
+                      <span className="material-symbols-outlined text-[14px]">{stepDest.icon}</span>
+                      <span>Go to {stepDest.shortLabel}</span>
+                      <span className="material-symbols-outlined text-[13px]">arrow_forward</span>
                     </button>
                   </div>
                 </div>
@@ -205,6 +340,59 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
                   Visual Engine: {(plan.sections[activeSection]?.visualType || 'diagram').toUpperCase()}
                 </span>
               </div>
+
+              {/* Selected Step Destination Navigation Card */}
+              {(() => {
+                const currentDest = getActiveDestination(activeSection);
+                return (
+                  <div className="bg-[#f2f3ff] border border-[#c7c4d7]/70 rounded-2xl p-4 mb-4">
+                    <div className="flex items-center justify-between gap-2 mb-1.5 flex-wrap">
+                      <div className="flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[#4648d4] text-[18px]">near_me</span>
+                        <span className="text-xs font-bold text-[#131b2e] uppercase tracking-wider">
+                          Step {activeSection + 1} Target Page
+                        </span>
+                      </div>
+                      <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${currentDest.badgeStyle} flex items-center gap-1`}>
+                        <span className="material-symbols-outlined text-[14px]">{currentDest.icon}</span>
+                        {currentDest.label}
+                      </span>
+                    </div>
+                    <p className="text-xs text-[#464554] mb-3 leading-relaxed">
+                      {currentDest.description}
+                    </p>
+
+                    <div className="flex flex-col gap-1.5 pt-2 border-t border-[#c7c4d7]/40">
+                      <span className="text-[10px] font-bold uppercase text-[#767586] tracking-wider">
+                        Quick Destination Switcher for Step {activeSection + 1}:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {destinationChoices.map((opt) => {
+                          const isActive = currentDest.screen === opt.id;
+                          return (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => {
+                                setScreenOverrides((prev) => ({ ...prev, [activeSection]: opt.id }));
+                              }}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-semibold flex items-center gap-1 transition-all cursor-pointer ${
+                                isActive
+                                  ? 'bg-[#4648d4] text-white shadow-xs'
+                                  : 'bg-white text-[#464554] hover:text-[#131b2e] hover:bg-white border border-[#c7c4d7]/60'
+                              }`}
+                              title={opt.desc}
+                            >
+                              <span className="material-symbols-outlined text-[14px]">{opt.icon}</span>
+                              <span>{opt.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               <h3 className="text-lg font-bold text-[#131b2e] mb-2">
                 {plan.sections[activeSection]?.title}
@@ -249,29 +437,37 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
               </div>
             </div>
 
-            {/* Launch Classroom Action */}
-            <div className="mt-6 pt-4 border-t border-[#c7c4d7]/60 flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => onNavigate('personalize')}
-                className="text-xs text-[#464554] hover:text-[#131b2e] font-semibold flex items-center gap-1 cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[16px]">tune</span>
-                Adjust Preferences
-              </button>
+            {/* Launch Action */}
+            {(() => {
+              const currentDest = getActiveDestination(activeSection);
+              return (
+                <div className="mt-6 pt-4 border-t border-[#c7c4d7]/60 flex items-center justify-between gap-3 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('personalize')}
+                    className="text-xs text-[#464554] hover:text-[#131b2e] font-semibold flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-[16px]">tune</span>
+                    Adjust Preferences
+                  </button>
 
-              <button
-                type="button"
-                onClick={() => handleStartClassroom(activeSection)}
-                disabled={isGenerating}
-                className="px-6 py-3 bg-gradient-to-r from-[#4648d4] to-[#6063ee] text-white font-bold text-xs rounded-xl hover:opacity-95 shadow-md flex items-center gap-2 transition-all cursor-pointer"
-              >
-                <span className="material-symbols-outlined text-[18px]">play_circle</span>
-                {isGenerating
-                  ? 'Initializing AI Classroom...'
-                  : `Begin Teaching Lesson ${activeSection + 1}`}
-              </button>
-            </div>
+                  <button
+                    type="button"
+                    onClick={() => handleGoToPage(activeSection, currentDest.screen)}
+                    disabled={isGenerating}
+                    className={`px-6 py-3 rounded-xl font-bold text-xs shadow-md flex items-center gap-2 transition-all cursor-pointer ${currentDest.buttonBg}`}
+                  >
+                    <span className="material-symbols-outlined text-[18px]">{currentDest.icon}</span>
+                    <span>
+                      {isGenerating
+                        ? `Opening ${currentDest.shortLabel}...`
+                        : `Go to ${currentDest.label}`}
+                    </span>
+                    <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                  </button>
+                </div>
+              );
+            })()}
           </div>
         </div>
       </div>

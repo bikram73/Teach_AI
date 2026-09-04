@@ -371,8 +371,23 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
   const [isPlaying, setIsPlaying] = useState(true);
   const [speed, setSpeed] = useState<'0.8x' | '1.0x' | '1.25x' | '1.5x'>('1.0x');
   const [isMuted, setIsMuted] = useState(false);
-  const [activeBoardTab, setActiveBoardTab] = useState<VisualMode>(initialMode);
+  const [activeBoardTab, setActiveBoardTab] = useState<VisualMode>(() => {
+    const target = initialScenes[initialSceneIndex ?? 0] || initialScenes[0];
+    return target?.visualType || initialMode;
+  });
   const [isLoadingScenes, setIsLoadingScenes] = useState(false);
+
+  // Synchronize when initialSceneIndex changes
+  useEffect(() => {
+    if (typeof initialSceneIndex === 'number' && initialSceneIndex >= 0) {
+      setCurrentSceneIndex(initialSceneIndex);
+      const target = scenes[initialSceneIndex] || initialScenes[initialSceneIndex];
+      if (target) {
+        if (target.visualType) setActiveBoardTab(target.visualType);
+        if (target.codeSnippet) setCodeSnippet(target.codeSnippet);
+      }
+    }
+  }, [initialSceneIndex]);
 
   // In-Scene Active Learning Checkpoint State
   const [selectedMicroQuizOption, setSelectedMicroQuizOption] = useState<number | null>(null);
