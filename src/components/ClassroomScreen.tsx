@@ -4,6 +4,14 @@ import { ClassroomScene, LessonPlan, PersonalizeFormState, ScreenType, VisualMod
 import { getLanguageBCP47, getBestVoice, isPureEnglish } from '../utils/language';
 import { buildDynamicLessonPlan, buildDynamicScenesFromPlan } from '../utils/lessonGenerator';
 import { addActivityEvent } from '../utils/historyStorage';
+import {
+  getSubjectDomain,
+  getWhiteboardTabs,
+  getDynamicDiagramNodes,
+  getDynamicTimelineEvents,
+  getDynamicFormulaConfig,
+  getDynamicSimulationConfig,
+} from '../utils/whiteboardGenerator';
 
 interface ClassroomScreenProps {
   onNavigate: (screen: ScreenType) => void;
@@ -474,6 +482,48 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
   const currentScene = scenes[currentSceneIndex] || scenes[0];
   const calculatedCurrent = isCircuitClosed ? Number((voltage / (resistance || 1)).toFixed(2)) : 0;
   const powerWatts = isCircuitClosed ? Number((voltage * calculatedCurrent).toFixed(2)) : 0;
+
+  // Dynamic Whiteboard Generation Grounded in User Input
+  const dynamicTabs = getWhiteboardTabs(currentTopic, formState?.uploadedFileContent);
+  const diagramNodes = getDynamicDiagramNodes(currentTopic, currentScene, formState?.uploadedFileContent);
+  const timelineEvents = getDynamicTimelineEvents(currentTopic, currentScene, formState?.uploadedFileContent);
+  const formulaConfig = getDynamicFormulaConfig(currentTopic, currentScene, formState?.uploadedFileContent);
+  const simulationConfig = getDynamicSimulationConfig(currentTopic, currentScene, formState?.uploadedFileContent);
+
+  // Dynamic Interactive Variables State
+  const [simValues, setSimValues] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    simulationConfig.controls.forEach((c) => {
+      init[c.key] = c.default;
+    });
+    return init;
+  });
+
+  const [formulaValues, setFormulaValues] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {};
+    formulaConfig.interactiveVariables.forEach((v) => {
+      init[v.symbol] = v.default;
+    });
+    return init;
+  });
+
+  // Re-sync default values when topic or scene changes
+  useEffect(() => {
+    const newSim: Record<string, number> = {};
+    simulationConfig.controls.forEach((c) => {
+      newSim[c.key] = c.default;
+    });
+    setSimValues(newSim);
+
+    const newFormula: Record<string, number> = {};
+    formulaConfig.interactiveVariables.forEach((v) => {
+      newFormula[v.symbol] = v.default;
+    });
+    setFormulaValues(newFormula);
+  }, [currentTopic, currentSceneIndex]);
+
+  const simResult = simulationConfig.calculate(simValues);
+  const formulaResult = formulaConfig.calculateResult(formulaValues);
 
   // Reset in-scene interactive states when changing scene
   useEffect(() => {
@@ -1003,76 +1053,51 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
         </section>
 
         {/* Right Column: Interactive Subject-Aware Whiteboard */}
-        <section className="flex-1 bg-white border border-[#c7c4d7]/70 rounded-3xl p-4 md:p-6 shadow-sm flex flex-col justify-between overflow-hidden">
+        <section className="flex-1 bg-white border border-[#c7c4d7]/80 rounded-3xl p-4 md:p-6 shadow-xs flex flex-col justify-between overflow-hidden transition-all">
           <div>
             {/* Whiteboard Mode Selector Tabs */}
             <div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-5 border-b border-[#c7c4d7]/60">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-lg bg-[#eff1ff] text-[#4648d4] flex items-center justify-center font-bold">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-[#eff1ff] text-[#4648d4] flex items-center justify-center font-bold shadow-2xs border border-[#c7c4d7]/50">
                   <span className="material-symbols-outlined text-[20px]">
-                    {activeBoardTab === 'code' ? 'terminal' : activeBoardTab === 'diagram' ? 'account_tree' : activeBoardTab === 'timeline' ? 'timeline' : activeBoardTab === 'circuit' ? 'bolt' : 'functions'}
+                    {dynamicTabs.find((t) => t.id === activeBoardTab)?.icon || 'dashboard'}
                   </span>
                 </div>
                 <div>
-                  <h2 className="font-bold text-base text-[#131b2e]">Visual Interactive Whiteboard</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="font-bold text-base text-[#131b2e]">
+                      {dynamicTabs.find((t) => t.id === activeBoardTab)?.label || 'Visual Interactive Whiteboard'}
+                    </h2>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#eff1ff] text-[#4648d4] border border-[#4648d4]/20 hidden sm:inline-block">
+                      Subject-Grounded
+                    </span>
+                  </div>
                   <p className="text-[11px] text-[#464554]">
-                    Active Mode: {activeBoardTab.toUpperCase()} • Topic: {currentTopic}
+                    {dynamicTabs.find((t) => t.id === activeBoardTab)?.description || `Interactive visual learning ground for ${currentTopic}`}
                   </p>
                 </div>
               </div>
 
               {/* Whiteboard Tabs */}
-              <div className="flex flex-wrap bg-[#f2f3ff] p-1 rounded-xl border border-[#c7c4d7]/60 gap-1">
-                <button
-                  onClick={() => setActiveBoardTab('code')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    activeBoardTab === 'code'
-                      ? 'bg-white text-[#4648d4] shadow-xs'
-                      : 'text-[#464554] hover:text-[#131b2e]'
-                  }`}
-                >
-                  Code Sandbox
-                </button>
-                <button
-                  onClick={() => setActiveBoardTab('diagram')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    activeBoardTab === 'diagram'
-                      ? 'bg-white text-[#4648d4] shadow-xs'
-                      : 'text-[#464554] hover:text-[#131b2e]'
-                  }`}
-                >
-                  System Graph
-                </button>
-                <button
-                  onClick={() => setActiveBoardTab('timeline')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    activeBoardTab === 'timeline'
-                      ? 'bg-white text-[#4648d4] shadow-xs'
-                      : 'text-[#464554] hover:text-[#131b2e]'
-                  }`}
-                >
-                  Timeline
-                </button>
-                <button
-                  onClick={() => setActiveBoardTab('formula')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    activeBoardTab === 'formula'
-                      ? 'bg-white text-[#4648d4] shadow-xs'
-                      : 'text-[#464554] hover:text-[#131b2e]'
-                  }`}
-                >
-                  Formulas & Rules
-                </button>
-                <button
-                  onClick={() => setActiveBoardTab('circuit')}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    activeBoardTab === 'circuit'
-                      ? 'bg-white text-[#4648d4] shadow-xs'
-                      : 'text-[#464554] hover:text-[#131b2e]'
-                  }`}
-                >
-                  Circuit Lab
-                </button>
+              <div className="flex flex-wrap bg-[#f0f2ff] p-1.5 rounded-2xl border border-[#c7c4d7]/70 shadow-2xs gap-1">
+                {dynamicTabs.map((tab) => {
+                  const isActive = activeBoardTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveBoardTab(tab.id)}
+                      title={tab.description}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                        isActive
+                          ? 'bg-white text-[#4648d4] shadow-xs border border-[#4648d4]/20'
+                          : 'text-[#464554] hover:text-[#131b2e] hover:bg-white/60'
+                      }`}
+                    >
+                      <span className="material-symbols-outlined text-[15px]">{tab.icon}</span>
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -1085,7 +1110,13 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
                       <span className="w-2.5 h-2.5 rounded-full bg-rose-500 inline-block" />
                       <span className="w-2.5 h-2.5 rounded-full bg-amber-500 inline-block" />
                       <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 inline-block" />
-                      <span className="ml-2 font-bold text-slate-300">main.py — Interactive Live Code</span>
+                      <span className="ml-2 font-bold text-slate-300">
+                        {currentTopic.toLowerCase().includes('sql')
+                          ? 'query.sql — Interactive Query Runner'
+                          : currentTopic.toLowerCase().includes('script') || currentTopic.toLowerCase().includes('react')
+                          ? 'script.js — Live Script'
+                          : `${currentTopic.toLowerCase().replace(/[^a-z0-9]/g, '_').slice(0, 18) || 'main'}.py — Live Interactive Code`}
+                      </span>
                     </div>
                     <button
                       onClick={handleRunCode}
@@ -1104,7 +1135,7 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
                     onChange={(e) => setCodeSnippet(e.target.value)}
                     rows={7}
                     className="w-full bg-[#0f172a] text-emerald-400 p-4 font-mono text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500 resize-y"
-                    placeholder="Type or modify Python code..."
+                    placeholder={`Type or modify live code for ${currentTopic}...`}
                   />
 
                   {/* Terminal Console Output */}
@@ -1139,28 +1170,28 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
               </div>
             )}
 
-            {/* TAB 2: SYSTEM DIAGRAM (For Biology, Anatomy, Architecture) */}
+            {/* TAB 2: SYSTEM DIAGRAM (Subject-Aware Component Architecture) */}
             {activeBoardTab === 'diagram' && (
               <div className="flex flex-col gap-4">
                 <div className="bg-[#faf8ff] border border-[#c7c4d7]/70 p-5 rounded-2xl">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-sm text-[#131b2e] flex items-center gap-1.5">
-                      <span className="material-symbols-outlined text-[#4648d4] text-[18px]">account_tree</span>
-                      Interactive Component Architecture
-                    </h3>
+                    <div>
+                      <h3 className="font-bold text-sm text-[#131b2e] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[#4648d4] text-[18px]">account_tree</span>
+                        Dynamic Architecture for {currentTopic}
+                      </h3>
+                      <p className="text-[11px] text-[#464554] mt-0.5">
+                        Modular structural blocks generated directly from {currentTopic}
+                      </p>
+                    </div>
                     <span className="text-[11px] text-[#4648d4] font-semibold bg-[#eff1ff] px-2.5 py-0.5 rounded-full border border-[#c7c4d7]/60">
-                      Click components to inspect
+                      Click to inspect
                     </span>
                   </div>
 
                   {/* Grid of Interactive Nodes */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
-                    {(currentScene.diagramData?.nodes || [
-                      { id: 'core', label: 'Central Core', desc: 'Central regulatory center coordinating system activity.', category: 'Control' },
-                      { id: 'boundary', label: 'Boundary Layer', desc: 'Regulates inputs, outputs, and protective encapsulation.', category: 'Transport' },
-                      { id: 'engine', label: 'Metabolic Engine', desc: 'Generates energy and drives fundamental biochemical processes.', category: 'Metabolism' },
-                      { id: 'network', label: 'Transport Network', desc: 'Facilitates internal distribution of vital substrates.', category: 'Flow' },
-                    ]).map((node) => {
+                    {diagramNodes.map((node) => {
                       const isSelected = selectedDiagramNode === node.id;
                       return (
                         <div
@@ -1169,18 +1200,31 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
                           className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between ${
                             isSelected
                               ? 'bg-[#eff1ff] border-[#4648d4] ring-2 ring-[#4648d4]/30 shadow-sm'
-                              : 'bg-white border-[#c7c4d7]/70 hover:border-[#6063ee] hover:bg-white'
+                              : 'bg-white border-[#c7c4d7]/70 hover:border-[#6063ee] hover:bg-white/80'
                           }`}
                         >
                           <div className="flex items-center justify-between mb-1.5">
-                            <span className="font-bold text-xs text-[#131b2e]">{node.label}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs text-[#131b2e]">{node.label}</span>
+                              {node.category && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#e0e4ff] text-[#4648d4]">
+                                  {node.category}
+                                </span>
+                              )}
+                            </div>
                             <span className="material-symbols-outlined text-[16px] text-[#4648d4]">
                               {isSelected ? 'check_circle' : 'touch_app'}
                             </span>
                           </div>
-                          <p className="text-xs text-[#464554] leading-relaxed line-clamp-3">
+                          <p className="text-xs text-[#464554] leading-relaxed mb-1">
                             {node.desc}
                           </p>
+                          {isSelected && node.details && (
+                            <div className="mt-2 pt-2 border-t border-[#4648d4]/20 text-[11px] text-[#334155] bg-white/70 p-2 rounded-lg">
+                              <span className="font-bold text-[#4648d4]">Role in {currentTopic}: </span>
+                              {node.details}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -1189,22 +1233,24 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
               </div>
             )}
 
-            {/* TAB 3: TIMELINE (For History, Revolutions, Milestones) */}
+            {/* TAB 3: TIMELINE (Chronological Milestone & Progression Map) */}
             {activeBoardTab === 'timeline' && (
               <div className="flex flex-col gap-4">
                 <div className="bg-[#faf8ff] border border-[#c7c4d7]/70 p-5 rounded-2xl">
-                  <h3 className="font-bold text-sm text-[#131b2e] mb-4 flex items-center gap-1.5">
-                    <span className="material-symbols-outlined text-[#4648d4] text-[18px]">timeline</span>
-                    Chronological Milestone Map
-                  </h3>
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="font-bold text-sm text-[#131b2e] flex items-center gap-1.5">
+                        <span className="material-symbols-outlined text-[#4648d4] text-[18px]">timeline</span>
+                        Progression Path for {currentTopic}
+                      </h3>
+                      <p className="text-[11px] text-[#464554] mt-0.5">
+                        Chronological sequence and developmental milestones
+                      </p>
+                    </div>
+                  </div>
 
                   <div className="space-y-3">
-                    {(currentScene.timelineEvents || [
-                      { yearOrStep: 'Phase 1', title: 'Precursor Catalysts', desc: 'Societal and economic tensions build up leading to mobilization.', impact: 'Weakens old status quo' },
-                      { yearOrStep: 'Phase 2', title: 'Trigger Event', desc: 'A decisive spark catalyzes widespread revolution or reform.', impact: 'Mobilizes public response' },
-                      { yearOrStep: 'Phase 3', title: 'Strategic Turning Point', desc: 'Critical conflict or resolution shifting geopolitical momentum.', impact: 'Irreversible transition' },
-                      { yearOrStep: 'Phase 4', title: 'Lasting Legacy', desc: 'Long-term institutional frameworks and constitutional models.', impact: 'Enduring legal precedents' },
-                    ]).map((ev, idx) => {
+                    {timelineEvents.map((ev, idx) => {
                       const isSelected = selectedTimelineEvent === idx;
                       return (
                         <div
@@ -1224,7 +1270,7 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
                             <p className="text-xs text-[#464554] leading-relaxed mb-1">{ev.desc}</p>
                             {ev.impact && (
                               <span className="inline-block text-[10px] bg-[#eff1ff] text-[#4648d4] font-semibold px-2 py-0.5 rounded">
-                                Impact: {ev.impact}
+                                Core Consequence: {ev.impact}
                               </span>
                             )}
                           </div>
@@ -1236,141 +1282,268 @@ export const ClassroomScreen: React.FC<ClassroomScreenProps> = ({
               </div>
             )}
 
-            {/* TAB 4: FORMULA & GOVERNING RULES */}
+            {/* TAB 4: FORMULA & GOVERNING RULES (Dynamic Subject Equations) */}
             {activeBoardTab === 'formula' && (
               <div className="flex flex-col gap-4">
                 <div className="bg-[#faf8ff] border border-[#c7c4d7]/70 p-6 rounded-2xl text-center">
                   <span className="text-xs font-bold text-[#4648d4] uppercase tracking-wider block mb-2">
-                    Governing Equation in {currentTopic}
+                    Governing Law in {currentTopic}
                   </span>
                   <div className="text-2xl sm:text-3xl font-extrabold text-[#131b2e] tracking-wide mb-2 font-mono">
-                    {currentScene.formulaData?.formula || (
-                      currentTopic.toLowerCase().includes('circuit') || currentTopic.toLowerCase().includes('ohm') ? (
-                        <span><span className="text-[#0284c7]">V</span> = <span className="text-[#d97706]">I</span> × <span className="text-[#7c3aed]">R</span></span>
-                      ) : (
-                        <span>Output = f(Input, GoverningLaws)</span>
-                      )
-                    )}
+                    {formulaConfig.formula}
                   </div>
-                  <p className="text-xs sm:text-sm text-[#464554] max-w-lg mx-auto leading-relaxed">
-                    {currentScene.formulaData?.description || 'Governing principles establish invariant cause-and-effect relationships between fundamental system parameters.'}
+                  <p className="text-xs sm:text-sm text-[#464554] max-w-lg mx-auto leading-relaxed mb-3">
+                    {formulaConfig.description}
                   </p>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#eff1ff] rounded-lg border border-[#4648d4]/20 text-xs font-bold text-[#4648d4]">
+                    <span>Computed {formulaResult.label}:</span>
+                    <span className="font-mono text-sm font-extrabold text-[#131b2e]">{formulaResult.value}</span>
+                  </div>
                 </div>
 
+                {/* Variable Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div className="p-4 rounded-xl bg-[#f0f9ff] border border-[#bae6fd]">
-                    <h4 className="font-bold text-xs text-[#0369a1] mb-1">Driving Potential (V)</h4>
-                    <p className="text-xs text-[#334155]">The electromotive force or energy gradient pushing throughput.</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-[#fffbeb] border border-[#fde68a]">
-                    <h4 className="font-bold text-xs text-[#b45309] mb-1">Throughput Rate (I)</h4>
-                    <p className="text-xs text-[#334155]">The resulting flux of charges or data per unit of time.</p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-[#faf5ff] border border-[#d8b4fe]">
-                    <h4 className="font-bold text-xs text-[#6b21a8] mb-1">Opposition / Resistance (R)</h4>
-                    <p className="text-xs text-[#334155]">The structural impediment that dissipates energy into heat.</p>
-                  </div>
+                  {formulaConfig.cards.map((card, idx) => (
+                    <div
+                      key={idx}
+                      className={`p-4 rounded-xl border transition-all ${card.bgClass} ${card.borderClass}`}
+                    >
+                      <h4 className={`font-bold text-xs mb-1 ${card.textClass}`}>
+                        {card.title} {card.symbol && `(${card.symbol})`}
+                      </h4>
+                      <p className="text-xs text-[#334155] leading-relaxed">{card.desc}</p>
+                    </div>
+                  ))}
                 </div>
+
+                {/* Interactive Variables Sliders */}
+                {formulaConfig.interactiveVariables.length > 0 && (
+                  <div className="bg-white border border-[#c7c4d7]/70 p-4 rounded-2xl shadow-2xs">
+                    <h4 className="font-bold text-xs text-[#131b2e] mb-3 flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[#4648d4] text-[16px]">tune</span>
+                      Interactive Parameter Adjustment
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {formulaConfig.interactiveVariables.map((variable) => {
+                        const currentVal = formulaValues[variable.symbol] ?? variable.default;
+                        return (
+                          <div key={variable.symbol} className="bg-[#f8f9ff] border border-[#c7c4d7]/60 p-3 rounded-xl">
+                            <div className="flex justify-between items-center mb-1">
+                              <label className="text-xs font-bold text-[#131b2e]">
+                                {variable.name} ({variable.symbol})
+                              </label>
+                              <span className="text-xs font-extrabold font-mono text-[#4648d4]">
+                                {currentVal} {variable.unit}
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={variable.min}
+                              max={variable.max}
+                              step={variable.step}
+                              value={currentVal}
+                              onChange={(e) =>
+                                setFormulaValues((prev) => ({
+                                  ...prev,
+                                  [variable.symbol]: Number(e.target.value),
+                                }))
+                              }
+                              className="w-full accent-[#4648d4] cursor-pointer"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* TAB 5: CIRCUIT WORKBENCH (For Physics / Circuits) */}
+            {/* TAB 5: SIMULATION WORKBENCH (Subject-Aware Interactive Lab) */}
             {activeBoardTab === 'circuit' && (
               <div className="flex flex-col gap-5">
-                <div className="w-full bg-[#0d1527] text-white p-5 rounded-2xl border border-[#1e293b] shadow-inner relative overflow-hidden flex flex-col items-center justify-center min-h-[190px]">
-                  <div
-                    className="absolute inset-0 opacity-10 pointer-events-none"
-                    style={{
-                      backgroundImage: 'radial-gradient(circle, #818cf8 1px, transparent 1px)',
-                      backgroundSize: '16px 16px',
-                    }}
-                  />
-
-                  <div className="relative w-full max-w-md h-32 border-2 border-dashed border-cyan-400/80 rounded-2xl flex items-center justify-between px-8 z-10">
-                    <div className="flex flex-col items-center bg-[#1e293b] p-3 rounded-xl border border-cyan-500/50 shadow-md">
-                      <span className="material-symbols-outlined text-amber-400 text-[24px]">battery_charging_full</span>
-                      <span className="text-xs font-bold text-cyan-300">{voltage}V</span>
-                      <span className="text-[9px] uppercase tracking-wider text-white/60">Source</span>
-                    </div>
-
-                    <div
-                      onClick={() => setIsCircuitClosed(!isCircuitClosed)}
-                      className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#1e293b] hover:bg-[#334155] border border-white/20 rounded-full text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-md"
-                    >
-                      <div className={`w-2 h-2 rounded-full ${isCircuitClosed ? 'bg-emerald-400' : 'bg-rose-400'}`} />
-                      <span>Switch: {isCircuitClosed ? 'Closed (ON)' : 'Open (OFF)'}</span>
-                    </div>
-
-                    {isCircuitClosed && (
-                      <div className="absolute inset-0 pointer-events-none flex items-center justify-around">
-                        <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
-                        <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" style={{ animationDelay: '0.4s' }} />
-                        <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" style={{ animationDelay: '0.8s' }} />
-                      </div>
-                    )}
-
-                    <div className="flex flex-col items-center bg-[#1e293b] p-3 rounded-xl border border-purple-500/50 shadow-md">
-                      <span
-                        className="material-symbols-outlined text-[26px] transition-colors"
+                {simulationConfig.type === 'circuit' ? (
+                  // Native Circuit Simulation for Electrical & Physics Topics
+                  <>
+                    <div className="w-full bg-[#0d1527] text-white p-5 rounded-2xl border border-[#1e293b] shadow-inner relative overflow-hidden flex flex-col items-center justify-center min-h-[190px]">
+                      <div
+                        className="absolute inset-0 opacity-10 pointer-events-none"
                         style={{
-                          color: isCircuitClosed && calculatedCurrent > 0 ? '#fbbf24' : '#64748b',
-                          filter: isCircuitClosed && calculatedCurrent > 0 ? `drop-shadow(0 0 ${Math.min(calculatedCurrent * 4, 16)}px #fbbf24)` : 'none',
+                          backgroundImage: 'radial-gradient(circle, #818cf8 1px, transparent 1px)',
+                          backgroundSize: '16px 16px',
                         }}
-                      >
-                        lightbulb
-                      </span>
-                      <span className="text-xs font-bold text-purple-300">{resistance} Ω</span>
-                      <span className="text-[9px] uppercase tracking-wider text-white/60">Load</span>
-                    </div>
-                  </div>
+                      />
 
-                  <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-xs z-10">
-                    <span className="bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 px-3 py-1 rounded-lg font-mono font-bold">
-                      Current I = {calculatedCurrent} Amperes (A)
-                    </span>
-                    <span className="bg-purple-950/80 border border-purple-500/40 text-purple-300 px-3 py-1 rounded-lg font-mono font-bold">
-                      Power P = {powerWatts} Watts (W)
-                    </span>
-                  </div>
-                </div>
+                      <div className="relative w-full max-w-md h-32 border-2 border-dashed border-cyan-400/80 rounded-2xl flex items-center justify-between px-8 z-10">
+                        <div className="flex flex-col items-center bg-[#1e293b] p-3 rounded-xl border border-cyan-500/50 shadow-md">
+                          <span className="material-symbols-outlined text-amber-400 text-[24px]">battery_charging_full</span>
+                          <span className="text-xs font-bold text-cyan-300">{voltage}V</span>
+                          <span className="text-[9px] uppercase tracking-wider text-white/60">Source</span>
+                        </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="bg-[#f0f9ff] border border-[#bae6fd] p-3.5 rounded-2xl">
-                    <div className="flex justify-between items-center mb-1.5">
-                      <label className="text-xs font-bold text-[#0369a1] uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[16px]">speed</span>
-                        Voltage (Push)
-                      </label>
-                      <span className="text-xs font-extrabold text-[#0284c7]">{voltage} V</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="48"
-                      value={voltage}
-                      onChange={(e) => setVoltage(Number(e.target.value))}
-                      className="w-full accent-[#0284c7] cursor-pointer"
-                    />
-                  </div>
+                        <div
+                          onClick={() => setIsCircuitClosed(!isCircuitClosed)}
+                          className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-3 py-1 bg-[#1e293b] hover:bg-[#334155] border border-white/20 rounded-full text-[11px] font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-md"
+                        >
+                          <div className={`w-2 h-2 rounded-full ${isCircuitClosed ? 'bg-emerald-400' : 'bg-rose-400'}`} />
+                          <span>Switch: {isCircuitClosed ? 'Closed (ON)' : 'Open (OFF)'}</span>
+                        </div>
 
-                  <div className="bg-[#faf5ff] border border-[#d8b4fe] p-3.5 rounded-2xl">
-                    <div className="flex justify-between items-center mb-1.5">
-                      <label className="text-xs font-bold text-[#6b21a8] uppercase tracking-wider flex items-center gap-1.5">
-                        <span className="material-symbols-outlined text-[16px]">tune</span>
-                        Resistance (Obstacle)
-                      </label>
-                      <span className="text-xs font-extrabold text-[#7c3aed]">{resistance} Ω</span>
+                        {isCircuitClosed && (
+                          <div className="absolute inset-0 pointer-events-none flex items-center justify-around">
+                            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" />
+                            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" style={{ animationDelay: '0.4s' }} />
+                            <div className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-ping" style={{ animationDelay: '0.8s' }} />
+                          </div>
+                        )}
+
+                        <div className="flex flex-col items-center bg-[#1e293b] p-3 rounded-xl border border-purple-500/50 shadow-md">
+                          <span
+                            className="material-symbols-outlined text-[26px] transition-colors"
+                            style={{
+                              color: isCircuitClosed && calculatedCurrent > 0 ? '#fbbf24' : '#64748b',
+                              filter: isCircuitClosed && calculatedCurrent > 0 ? `drop-shadow(0 0 ${Math.min(calculatedCurrent * 4, 16)}px #fbbf24)` : 'none',
+                            }}
+                          >
+                            lightbulb
+                          </span>
+                          <span className="text-xs font-bold text-purple-300">{resistance} Ω</span>
+                          <span className="text-[9px] uppercase tracking-wider text-white/60">Load</span>
+                        </div>
+                      </div>
+
+                      <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-xs z-10">
+                        <span className="bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 px-3 py-1 rounded-lg font-mono font-bold">
+                          Current I = {calculatedCurrent} Amperes (A)
+                        </span>
+                        <span className="bg-purple-950/80 border border-purple-500/40 text-purple-300 px-3 py-1 rounded-lg font-mono font-bold">
+                          Power P = {powerWatts} Watts (W)
+                        </span>
+                      </div>
                     </div>
-                    <input
-                      type="range"
-                      min="1"
-                      max="30"
-                      value={resistance}
-                      onChange={(e) => setResistance(Number(e.target.value))}
-                      className="w-full accent-[#7c3aed] cursor-pointer"
-                    />
-                  </div>
-                </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="bg-[#f0f9ff] border border-[#bae6fd] p-3.5 rounded-2xl">
+                        <div className="flex justify-between items-center mb-1.5">
+                          <label className="text-xs font-bold text-[#0369a1] uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[16px]">speed</span>
+                            Voltage (Push)
+                          </label>
+                          <span className="text-xs font-extrabold text-[#0284c7]">{voltage} V</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="1"
+                          max="48"
+                          value={voltage}
+                          onChange={(e) => setVoltage(Number(e.target.value))}
+                          className="w-full accent-[#0284c7] cursor-pointer"
+                        />
+                      </div>
+
+                      <div className="bg-[#faf5ff] border border-[#d8b4fe] p-3.5 rounded-2xl">
+                        <div className="flex justify-between items-center mb-1.5">
+                          <label className="text-xs font-bold text-[#6b21a8] uppercase tracking-wider flex items-center gap-1.5">
+                            <span className="material-symbols-outlined text-[16px]">tune</span>
+                            Resistance (Obstacle)
+                          </label>
+                          <span className="text-xs font-extrabold text-[#7c3aed]">{resistance} Ω</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="1"
+                          max="30"
+                          value={resistance}
+                          onChange={(e) => setResistance(Number(e.target.value))}
+                          className="w-full accent-[#7c3aed] cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  // Subject-Aware Dynamic Interactive Simulation Lab
+                  <>
+                    <div className="w-full bg-[#0d1527] text-white p-5 rounded-2xl border border-[#1e293b] shadow-inner relative overflow-hidden flex flex-col items-center justify-center min-h-[190px]">
+                      <div
+                        className="absolute inset-0 opacity-10 pointer-events-none"
+                        style={{
+                          backgroundImage: 'radial-gradient(circle, #818cf8 1px, transparent 1px)',
+                          backgroundSize: '16px 16px',
+                        }}
+                      />
+
+                      {/* Visual Interactive Animation Hub */}
+                      <div className="relative w-full max-w-md h-32 border-2 border-dashed border-[#4648d4]/60 rounded-2xl flex items-center justify-around px-4 z-10 bg-[#141d33]/80">
+                        <div className="flex flex-col items-center p-3 rounded-xl bg-[#1e293b] border border-[#4648d4]/40">
+                          <span className="material-symbols-outlined text-amber-400 text-[26px]">
+                            {simulationConfig.type === 'reaction' ? 'science' : simulationConfig.type === 'dynamics' ? 'flight_takeoff' : simulationConfig.type === 'equilibrium' ? 'balance' : 'data_object'}
+                          </span>
+                          <span className="text-[10px] uppercase font-bold text-slate-400 mt-1">
+                            {simulationConfig.title}
+                          </span>
+                        </div>
+
+                        {/* Visual Animation Pulses */}
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-3 h-3 rounded-full bg-emerald-400 animate-pulse" />
+                          <div className="w-8 h-1 bg-gradient-to-r from-emerald-400 to-[#6063ee]" />
+                          <div className="w-3 h-3 rounded-full bg-[#6063ee] animate-pulse" style={{ animationDelay: '0.3s' }} />
+                        </div>
+
+                        <div className="flex flex-col items-center p-3 rounded-xl bg-[#1e293b] border border-emerald-500/40">
+                          <span className="text-xs font-bold text-emerald-300">
+                            {simResult.statusText}
+                          </span>
+                          <span className="text-[9px] uppercase tracking-wider text-white/60">Live State</span>
+                        </div>
+                      </div>
+
+                      {/* Live Computed Metrics */}
+                      <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-xs z-10">
+                        <span className="bg-cyan-950/80 border border-cyan-500/40 text-cyan-300 px-3 py-1 rounded-lg font-mono font-bold">
+                          {simResult.metric1.label}: {simResult.metric1.value}
+                        </span>
+                        <span className="bg-purple-950/80 border border-purple-500/40 text-purple-300 px-3 py-1 rounded-lg font-mono font-bold">
+                          {simResult.metric2.label}: {simResult.metric2.value}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Dynamic Sliders */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {simulationConfig.controls.map((ctrl) => {
+                        const val = simValues[ctrl.key] ?? ctrl.default;
+                        return (
+                          <div key={ctrl.key} className="bg-[#f0f9ff] border border-[#bae6fd] p-3.5 rounded-2xl">
+                            <div className="flex justify-between items-center mb-1.5">
+                              <label className="text-xs font-bold text-[#0369a1] uppercase tracking-wider flex items-center gap-1.5">
+                                <span className="material-symbols-outlined text-[16px]">tune</span>
+                                {ctrl.label}
+                              </label>
+                              <span className="text-xs font-extrabold text-[#0284c7]">
+                                {val} {ctrl.unit}
+                              </span>
+                            </div>
+                            <input
+                              type="range"
+                              min={ctrl.min}
+                              max={ctrl.max}
+                              step={ctrl.step}
+                              value={val}
+                              onChange={(e) =>
+                                setSimValues((prev) => ({
+                                  ...prev,
+                                  [ctrl.key]: Number(e.target.value),
+                                }))
+                              }
+                              className="w-full accent-[#0284c7] cursor-pointer"
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
