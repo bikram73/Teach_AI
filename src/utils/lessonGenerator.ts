@@ -1,4 +1,10 @@
 import { AssessmentItem, ClassroomScene, LessonPlan, LessonPlanSection, PersonalizeFormState, VisualMode } from '../types';
+import {
+  isBinaryOrCorruptedText,
+  cleanTextContent,
+  safeSummaryText,
+  synthesizeSubjectCurriculum,
+} from './textSanitizer';
 
 export interface DomainMetadata {
   subject: string;
@@ -44,20 +50,20 @@ export function extractClientDocumentInsights(documentText?: string, fallbackTop
 } {
   const text = (documentText || '').trim();
   const defTopic = fallbackTopic || 'Curriculum Subject';
-  if (!text) {
+  if (!text || isBinaryOrCorruptedText(text)) {
+    const synth = synthesizeSubjectCurriculum(defTopic);
     return {
-      topic: defTopic,
-      concepts: [`${defTopic} Foundations`, `${defTopic} Mechanics`, `${defTopic} Applications`, `${defTopic} Analysis`],
-      sections: [
-        { title: `Foundations of ${defTopic}`, concept: `${defTopic} Fundamentals`, summary: `Core definitions and introductory concepts.` },
-        { title: `Mechanisms & Structure in ${defTopic}`, concept: 'Structural Dynamics', summary: `Key operations, constraints, and relationships.` },
-        { title: `Applied Practice & Analysis`, concept: 'Applied Methodology', summary: `Real-world examples and worked problem scenarios.` },
-        { title: `Synthesis & Integration`, concept: 'Mastery Integration', summary: `Consolidation of insights and evaluation.` },
-      ],
+      topic: synth.topic,
+      concepts: synth.keyConcepts,
+      sections: synth.keyConcepts.slice(0, 4).map((c) => ({
+        title: `${c}: Principles & Dynamics`,
+        concept: c,
+        summary: `Examine the operational principles, core structure, and practical implementation patterns of ${c} in ${synth.topic}.`,
+      })),
     };
   }
 
-  const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
+  const lines = text.split('\n').map((l) => l.trim()).filter((l) => l.length > 0 && !isBinaryOrCorruptedText(l));
   let detectedTopic = fallbackTopic || '';
   if (!detectedTopic || /upload|document|lecture|notes|chapter|foundational|custom|physics_circuits/i.test(detectedTopic)) {
     const headingCandidate = lines.find((l) => /^#+\s+/.test(l) || /^(chapter|unit|topic|lecture|lesson)\s+/i.test(l));
@@ -76,7 +82,7 @@ export function extractClientDocumentInsights(documentText?: string, fallbackTop
   if (boldMatches) {
     for (const bm of boldMatches) {
       const clean = bm.replace(/\*\*/g, '').trim();
-      if (clean && !conceptSet.has(clean.toLowerCase()) && clean.length < 35) {
+      if (clean && !conceptSet.has(clean.toLowerCase()) && clean.length < 35 && !isBinaryOrCorruptedText(clean)) {
         conceptSet.add(clean.toLowerCase());
         concepts.push(clean);
       }
@@ -86,7 +92,7 @@ export function extractClientDocumentInsights(documentText?: string, fallbackTop
   const bulletLines = lines.filter((l) => /^[-*•]\s+/.test(l) || /^\d+\.\s+/.test(l));
   for (const bl of bulletLines) {
     const clean = bl.replace(/^[-*•\d.]+\s*/, '').split(/[:\-–—]/)[0].trim();
-    if (clean.length > 3 && clean.length < 40 && !conceptSet.has(clean.toLowerCase())) {
+    if (clean.length > 3 && clean.length < 40 && !conceptSet.has(clean.toLowerCase()) && !isBinaryOrCorruptedText(clean)) {
       conceptSet.add(clean.toLowerCase());
       concepts.push(clean);
     }
@@ -96,7 +102,7 @@ export function extractClientDocumentInsights(documentText?: string, fallbackTop
   if (capMatches) {
     for (const cm of capMatches) {
       const clean = cm.trim();
-      if (clean.length > 4 && clean.length < 35 && !conceptSet.has(clean.toLowerCase())) {
+      if (clean.length > 4 && clean.length < 35 && !conceptSet.has(clean.toLowerCase()) && !isBinaryOrCorruptedText(clean)) {
         if (!/^(This Document|The Following|In This|For Example|As Mentioned|We Can|It Is|There Are|Please Note)\b/i.test(clean)) {
           conceptSet.add(clean.toLowerCase());
           concepts.push(clean);
@@ -112,21 +118,25 @@ export function extractClientDocumentInsights(documentText?: string, fallbackTop
     concepts.push(`${detectedTopic} Edge Cases`);
   }
 
-  const paragraphs = text.split(/\n\s*\n/).map((p) => p.trim()).filter((p) => p.length > 20);
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) => cleanTextContent(p))
+    .filter((p) => p.length > 20 && !isBinaryOrCorruptedText(p));
+
   const maxSections = Math.min(5, Math.max(3, concepts.length));
   const sections: Array<{ title: string; concept: string; summary: string }> = [];
 
   for (let i = 0; i < maxSections; i++) {
     const concept = concepts[i] || `${detectedTopic} Part ${i + 1}`;
-    const relatedPara = paragraphs.find((p) => p.toLowerCase().includes(concept.toLowerCase())) || paragraphs[i] || '';
-    const summary = relatedPara
+    const relatedPara = paragraphs.find((p) => p.toLowerCase().includes(concept.toLowerCase()));
+    const summary = relatedPara && !isBinaryOrCorruptedText(relatedPara)
       ? relatedPara.slice(0, 180).replace(/\s+[^ ]*$/, '...')
-      : `Examine the operational principles and theoretical underpinnings of ${concept} in ${detectedTopic}.`;
+      : `Examine the operational principles, core syntax, and practical implementation patterns of ${concept} in ${detectedTopic}.`;
 
     sections.push({
       title: `${concept}: Principles & Dynamics`,
       concept,
-      summary,
+      summary: safeSummaryText(summary, concept, detectedTopic),
     });
   }
 
@@ -143,11 +153,12 @@ export function buildDynamicLessonPlan(formState?: Partial<PersonalizeFormState>
   const minutes = parseInt(time) || 20;
   const style = formState?.teachingStyle || 'conceptual';
 
-  // If uploaded content exists, extract grounded concepts and outline from the document
-  const hasUploadedDoc = Boolean(formState?.uploadedFileContent && formState.uploadedFileContent.trim().length > 15);
-  const docInsights = hasUploadedDoc ? extractClientDocumentInsights(formState?.uploadedFileContent, rawTopic) : null;
+  // If uploaded content exists and is valid text, extract grounded concepts and outline from the document
+  const rawUploaded = (formState?.uploadedFileContent || '').trim();
+  const hasUploadedDoc = Boolean(rawUploaded.length > 15 && !isBinaryOrCorruptedText(rawUploaded));
+  const docInsights = hasUploadedDoc ? extractClientDocumentInsights(rawUploaded, rawTopic) : null;
   const topic = docInsights?.topic || rawTopic;
-  const domain = inferTopicDomain(hasUploadedDoc ? `${topic} ${formState?.uploadedFileContent?.slice(0, 500)}` : topic);
+  const domain = inferTopicDomain(hasUploadedDoc ? `${topic} ${rawUploaded.slice(0, 500)}` : topic);
 
   // Parse time allocation into realistic section durations
   const d1 = `${Math.max(2, Math.round(minutes * 0.18))} mins`;
@@ -168,9 +179,9 @@ export function buildDynamicLessonPlan(formState?: Partial<PersonalizeFormState>
 
       return {
         id: `sec-${idx + 1}`,
-        title: sec.title,
+        title: cleanTextContent(sec.title),
         duration: `${Math.max(2, Math.round(minutes / docInsights.sections.length))} mins`,
-        summary: sec.summary,
+        summary: safeSummaryText(sec.summary, sec.concept, topic),
         keyConcept: sec.concept,
         visualType: vType,
         interactivePrompt: isFirst

@@ -440,11 +440,35 @@ function parseJSONFromText(text: string): any {
   }
 }
 
+// Helper: detect if a string contains raw binary, flate streams, or unprintable control sequences
+function isBinaryOrCorruptedText(str: string | undefined | null): boolean {
+  if (!str || typeof str !== "string") return false;
+  // Check for PDF stream or object markers
+  if (/(\/Filter\s*\/FlateDecode|endstream|endobj|\bObjStm\b|\/Length\s+\d+|\/Type\s*\/|<<\s*\/Filter|stream[\r\n]|%PDF-)/i.test(str)) {
+    return true;
+  }
+  // Check for unprintable/binary characters
+  const nonPrintableMatches = str.match(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uFFFD]/g);
+  if (nonPrintableMatches && (nonPrintableMatches.length / Math.max(1, str.length)) > 0.015) {
+    return true;
+  }
+  // Check for high proportion of non-alphanumeric ASCII garbage
+  const alphaChars = str.match(/[a-zA-Z0-9]/g);
+  if (!alphaChars || (alphaChars.length / Math.max(1, str.length)) < 0.35) {
+    return true;
+  }
+  return false;
+}
+
 // Helper: sanitize text output destined for project UI
 function sanitizeUIOutput(val: any): any {
   if (!val) return val;
   if (typeof val === "string") {
+    if (isBinaryOrCorruptedText(val)) {
+      return "Examine the operational principles, core syntax, and practical implementation patterns.";
+    }
     return val
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F\uFFFD]/g, " ")
       .replace(/\bGoogle\s+Gemini\b/gi, "TeachAI")
       .replace(/\bGemini-[\w.-]+\b/gi, "TeachAI Engine")
       .replace(/\bGemini\b/gi, "TeachAI")
@@ -545,23 +569,40 @@ function extractDocumentInsights(documentText?: string, topic?: string): {
   concepts: string[];
   sections: Array<{ title: string; concept: string; summary: string }>;
 } {
-  const text = (documentText || "").trim();
+  let text = (documentText || "").trim();
   const fallbackTopic = topic || "Foundational Curriculum";
+
+  if (isBinaryOrCorruptedText(text)) {
+    text = "";
+  }
+
   if (!text) {
+    const isSQL = /sql|database|relational/i.test(fallbackTopic);
+    const isCircuit = /circuit|ohm|resistor|voltage/i.test(fallbackTopic);
+    const isCode = /python|code|programming|algorithm/i.test(fallbackTopic);
+
+    let defaultConcepts = [`${fallbackTopic} Principles`, "Core Mechanics", "Practical Applications", "Mastery Synthesis"];
+    if (isSQL) {
+      defaultConcepts = ["Relational Architecture & Schemas", "Query Syntax & Filtering", "Relational Joins & Set Operations", "Aggregation & Analytics", "Transactions & Indexing"];
+    } else if (isCircuit) {
+      defaultConcepts = ["Ohm's Law & Resistance", "Kirchhoff's Current Law (KCL)", "Kirchhoff's Voltage Law (KVL)", "Series & Parallel Networks", "Power & Energy Dynamics"];
+    } else if (isCode) {
+      defaultConcepts = ["Variables & Data Types", "Control Flow & Conditionals", "Functions & Scope Isolation", "Data Structures & Iteration", "Debugging & Testing"];
+    }
+
     return {
       detectedTopic: fallbackTopic,
-      concepts: [`${fallbackTopic} Principles`, "Core Mechanics", "Practical Applications", "Mastery Synthesis"],
-      sections: [
-        { title: `Foundations of ${fallbackTopic}`, concept: `${fallbackTopic} Fundamentals`, summary: `Core definitions and introductory concepts.` },
-        { title: `Mechanisms & Structure`, concept: "Structural Dynamics", summary: `Key operations, constraints, and relationships.` },
-        { title: `Applied Practice & Analysis`, concept: "Applied Methodology", summary: `Real-world examples and worked problem scenarios.` },
-        { title: `Synthesis & Integration`, concept: "Mastery Integration", summary: `Consolidation of insights and evaluation.` },
-      ],
+      concepts: defaultConcepts,
+      sections: defaultConcepts.slice(0, 4).map((c) => ({
+        title: `${c}: Principles & Dynamics`,
+        concept: c,
+        summary: `Examine the operational principles, core syntax, and practical implementation patterns of ${c} in ${fallbackTopic}.`,
+      })),
     };
   }
 
   // 1. Detect candidate topic from headings or first significant sentence
-  const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+  const lines = text.split("\n").map(l => l.trim()).filter(l => l.length > 0 && !isBinaryOrCorruptedText(l));
   let detectedTopic = topic || "";
   if (!detectedTopic || /upload|document|lecture|notes|chapter|foundational/i.test(detectedTopic)) {
     const headingCandidate = lines.find(l => /^#+\s+/.test(l) || /^(chapter|unit|topic|lecture|lesson)\s+/i.test(l));
@@ -582,7 +623,7 @@ function extractDocumentInsights(documentText?: string, topic?: string): {
   if (boldMatches) {
     for (const bm of boldMatches) {
       const clean = bm.replace(/\*\*/g, "").trim();
-      if (clean && !conceptSet.has(clean.toLowerCase()) && clean.length < 35) {
+      if (clean && !conceptSet.has(clean.toLowerCase()) && clean.length < 35 && !isBinaryOrCorruptedText(clean)) {
         conceptSet.add(clean.toLowerCase());
         concepts.push(clean);
       }
@@ -593,7 +634,7 @@ function extractDocumentInsights(documentText?: string, topic?: string): {
   const bulletLines = lines.filter(l => /^[-*•]\s+/.test(l) || /^\d+\.\s+/.test(l));
   for (const bl of bulletLines) {
     const clean = bl.replace(/^[-*•\d.]+\s*/, "").split(/[:\-–—]/)[0].trim();
-    if (clean.length > 3 && clean.length < 40 && !conceptSet.has(clean.toLowerCase())) {
+    if (clean.length > 3 && clean.length < 40 && !conceptSet.has(clean.toLowerCase()) && !isBinaryOrCorruptedText(clean)) {
       conceptSet.add(clean.toLowerCase());
       concepts.push(clean);
     }
@@ -604,7 +645,7 @@ function extractDocumentInsights(documentText?: string, topic?: string): {
   if (capMatches) {
     for (const cm of capMatches) {
       const clean = cm.trim();
-      if (clean.length > 4 && clean.length < 35 && !conceptSet.has(clean.toLowerCase())) {
+      if (clean.length > 4 && clean.length < 35 && !conceptSet.has(clean.toLowerCase()) && !isBinaryOrCorruptedText(clean)) {
         if (!/^(This Document|The Following|In This|For Example|As Mentioned|We Can|It Is|There Are|Please Note)\b/i.test(clean)) {
           conceptSet.add(clean.toLowerCase());
           concepts.push(clean);
@@ -623,15 +664,18 @@ function extractDocumentInsights(documentText?: string, topic?: string): {
 
   // 3. Extract or synthesize document-grounded sections
   const sections: Array<{ title: string; concept: string; summary: string }> = [];
-  const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 20);
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map(p => p.trim())
+    .filter(p => p.length > 20 && !isBinaryOrCorruptedText(p));
 
   const maxSections = Math.min(5, Math.max(3, concepts.length));
   for (let i = 0; i < maxSections; i++) {
     const concept = concepts[i] || `${detectedTopic} Part ${i + 1}`;
-    const relatedPara = paragraphs.find(p => p.toLowerCase().includes(concept.toLowerCase())) || paragraphs[i] || "";
-    const summary = relatedPara 
+    const relatedPara = paragraphs.find(p => p.toLowerCase().includes(concept.toLowerCase()));
+    const summary = relatedPara && !isBinaryOrCorruptedText(relatedPara)
       ? relatedPara.slice(0, 180).replace(/\s+[^ ]*$/, "...")
-      : `Examine the operational principles and theoretical underpinnings of ${concept} in ${detectedTopic}.`;
+      : `Examine the operational principles, core syntax, and practical implementation patterns of ${concept} in ${detectedTopic}.`;
     
     sections.push({
       title: `${concept}: Principles & Dynamics`,
@@ -706,8 +750,11 @@ app.post("/api/session", (req, res) => {
 // Document Profiling Agent (PRD v2.0 Section 3 - Subject-Aware Document Intelligence)
 app.post("/api/document/profile", async (req, res) => {
   try {
-    const { documentText, fileName, userEnteredTopic } = req.body;
-    const text = (documentText || "").trim();
+    const { documentText, text: legacyText, fileName, userEnteredTopic } = req.body;
+    let text = (documentText || legacyText || "").trim();
+    if (isBinaryOrCorruptedText(text)) {
+      text = "";
+    }
     const cleanFileName = fileName ? fileName.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ") : "";
 
     if (!text && !userEnteredTopic && !cleanFileName) {
@@ -882,6 +929,9 @@ app.post("/api/lesson/plan", async (req, res) => {
     const userLang = language || "English";
     const userTime = timeAvailable || "20m";
     const style = teachingStyle || "conceptual";
+    const cleanDocText = (documentText && typeof documentText === "string" && !isBinaryOrCorruptedText(documentText))
+      ? documentText.slice(0, 3500)
+      : "";
 
     const prompt = `You are TeachAI's Curriculum & Lesson Planner Agent.
 Create a structured, highly engaging educational lesson plan for the specific topic: "${targetTopic}".
@@ -890,7 +940,7 @@ Student parameters:
 - Preferred Language: ${userLang}
 - Time Available: ${userTime}
 - Teaching Style: ${style}
-${documentText ? `\nContext from student's uploaded document:\n${documentText.slice(0, 3500)}\n` : ""}
+${cleanDocText ? `\nContext from student's uploaded document:\n${cleanDocText}\n` : ""}
 
 ${getStrictLanguageRule(userLang)}
 
@@ -939,9 +989,9 @@ Follow this JSON schema strictly:
     }
 
     // High-quality dynamic fallback grounded in uploaded documentText and user inputs
-    const insights = extractDocumentInsights(documentText, targetTopic);
+    const insights = extractDocumentInsights(cleanDocText, targetTopic);
     const resolvedTopic = insights.detectedTopic || targetTopic;
-    const meta = inferSubjectMetadata(resolvedTopic, documentText);
+    const meta = inferSubjectMetadata(resolvedTopic, cleanDocText);
     const minutes = parseInt(userTime) || 20;
 
     const sections = insights.sections.map((sec, idx) => {

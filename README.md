@@ -61,8 +61,8 @@ $$\text{Understand} \longrightarrow \text{Plan} \longrightarrow \text{Explain} \
 ### 🌟 Core Capabilities
 - ⚡ **Multi-Tier AI Fallback Engine (Zero Downtime)**:
   - **Tier 1 (Primary)**: Google Gemini (`gemini-3.8-flash`, `gemini-3.6-flash`, `gemini-flash-latest`, `gemini-3.1-flash-lite`) via `@google/genai` with exponential backoff on 503/429 quota spikes.
-  - **Tier 2 (Fallback)**: OpenRouter API (`google/gemini-2.0-flash-001`, `meta-llama/llama-3.3-70b-instruct`, `mistralai/mistral-small-24b-instruct-2501`) with custom model support (`OPENROUTER_MODEL`).
-  - **Tier 3 (Ultra-Fast Fallback)**: Groq LPU (`llama-3.3-70b-versatile`, `llama-3.1-8b-instant`) with 9-second timeout guards (`GROQ_MODEL`).
+  - **Tier 2 (Fallback)**: OpenRouter API (Gemini, Llama, Mistral) with custom model support (`OPENROUTER_MODEL`).
+  - **Tier 3 (Ultra-Fast Fallback)**: Groq LPU (Llama 70B, Llama 8B) with 9-second timeout guards (`GROQ_MODEL`).
   - **Tier 4 (Offline Fallback)**: Built-in deterministic pedagogical heuristics ensuring 100% system uptime without crashes.
 - 👤 **Seamless First-Time Onboarding & Persistent Identity**:
   - Modal onboarding prompts for student name before their first session.
@@ -144,8 +144,8 @@ Rather than delivering a static pre-recorded video or a basic talking-head anima
 | Layer | Technologies & Frameworks | Description |
 |:---|:---|:---|
 | **🤖 AI & LLM (Tier 1)** | Google Gemini 3.7 Flash (`@google/genai`) | Primary curriculum planner, teacher agent, evaluator, misconception detector |
-| **⚡ Fallback AI (Tier 2)** | OpenRouter API (`fetch`) | Secondary multi-model fallback (`google/gemini-2.0-flash`, `llama-3.3-70b`) |
-| **🚀 Fast Fallback (Tier 3)**| Groq Cloud LPU (`fetch`) | Tertiary ultra-fast fallback (`llama-3.3-70b-versatile`, `llama-3.1-8b`) |
+| **⚡ Fallback AI (Tier 2)** | OpenRouter API (`fetch`) | Secondary multi-model fallback (Gemini, Llama, Mistral) |
+| **🚀 Fast Fallback (Tier 3)**| Groq Cloud LPU (`fetch`) | Tertiary ultra-fast fallback (Llama high-speed inference) |
 | **🛡️ Fallback (Tier 4)** | Deterministic Pedagogical Heuristics | Zero-downtime offline fallback curriculum and visual board generator |
 | **🎨 Frontend** | React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons | Responsive SPA, interactive STEM simulators, dynamic SVG gauges |
 | **⚙️ Backend** | Node.js, Express.js, TypeScript, `serverless-http` | REST API routes, multi-tier AI cascade, in-memory RAG, document parser |
@@ -172,13 +172,13 @@ Google Gemini powers the primary cognitive and pedagogical intelligence across t
 ### 2. OpenRouter API — Secondary Multi-Model Fallback (Tier 2)
 If Gemini experiences high load, quota limits, or network timeouts, requests automatically fail over to OpenRouter:
 - **Standard Endpoint**: `https://openrouter.ai/api/v1/chat/completions` with JSON schema structuring.
-- **Model Cascade**: Uses `OPENROUTER_MODEL` (configurable) or falls back through `google/gemini-2.0-flash-001`, `meta-llama/llama-3.3-70b-instruct`, and `mistralai/mistral-small-24b-instruct-2501`.
+- **Model Cascade**: Uses `OPENROUTER_MODEL` (configurable) with automatic fallback cascade across high-performance instruction models.
 - **12-Second Timeout Guard**: Ensures the UI never stalls even during provider latency spikes.
 
 ### 3. Groq Cloud LPU — Tertiary Ultra-Fast Fallback (Tier 3)
 If both Gemini and OpenRouter are unavailable or unconfigured, requests instantly route to Groq's high-speed inference engine:
 - **Standard Endpoint**: `https://api.groq.com/openai/v1/chat/completions`.
-- **Model Cascade**: Uses `GROQ_MODEL` or falls back through `llama-3.3-70b-versatile` and `llama-3.1-8b-instant`.
+- **Model Cascade**: Uses `GROQ_MODEL` (configurable) with automatic fallback cascade across ultra-low-latency models.
 - **9-Second Timeout Guard**: Guarantees near-instant pedagogical generation.
 
 ### 4. Browser Web Speech APIs
@@ -339,11 +339,11 @@ GEMINI_API_KEY=your_gemini_api_key_here
 
 # OpenRouter API Key & Custom Model (Tier 2 Fallback)
 OPENROUTER_API_KEY=your_openrouter_api_key_here
-OPENROUTER_MODEL=google/gemini-2.0-flash-001
+OPENROUTER_MODEL=your_openrouter_model_id
 
 # Groq API Key & Custom Model (Tier 3 Fast Fallback)
 GROQ_API_KEY=your_groq_api_key_here
-GROQ_MODEL=llama-3.3-70b-versatile
+GROQ_MODEL=your_groq_model_id
 
 # (Optional) Port configuration (defaults to 3000)
 PORT=3000

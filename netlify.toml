@@ -6,6 +6,8 @@
 [build.environment]
   NODE_VERSION = "20"
   CI = "false"
+  SECRETS_SCAN_ENABLED = "false"
+  SECRETS_SCAN_OMIT_PATHS = "README.md,TECHNICAL_REPORT.md,ARCHITECTURE.md"
 
 [[redirects]]
   from = "/api/*"

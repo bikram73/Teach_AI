@@ -139,6 +139,132 @@ const FAQS = [
   }
 ];
 
+const PEDAGOGICAL_STEPS = [
+  {
+    step: "1. Understand",
+    title: "Document Ingestion & Topic Extraction",
+    badge: "Cognitive Parser",
+    icon: "document_scanner",
+    color: "#4648d4",
+    description: "Parses uploaded course materials (.pdf, .docx, .pptx) or student-entered topics. Extracts core principles, prerequisite graphs, and estimated difficulty.",
+    output: "Clean semantic chunks, key terminology index, and student baseline profile."
+  },
+  {
+    step: "2. Plan",
+    title: "Dynamic Modular Syllabus",
+    badge: "Curriculum Planner",
+    icon: "account_tree",
+    color: "#6063ee",
+    description: "Synthesizes an optimal learning sequence based on student available time (5m - 60m), proficiency level, and pedagogical style (conceptual, socratic, visual).",
+    output: "Chronological syllabus modules, duration pacing, and visual board assignments."
+  },
+  {
+    step: "3. Explain",
+    title: "Socratic Voice & Real-Time Narration",
+    badge: "Voice Classroom",
+    icon: "record_voice_over",
+    color: "#8455ef",
+    description: "Teacher Nova presents concepts using conversational voice synthesis, synchronized captions, and natural pacing tailored to the chosen language.",
+    output: "Spoken audio, highlighted subtitles, and responsive teacher expressions."
+  },
+  {
+    step: "4. Demonstrate",
+    title: "Subject-Specific Interactive Sandboxes",
+    badge: "Active Whiteboard",
+    icon: "science",
+    color: "#10b981",
+    description: "Instead of passive images, Nova provides interactive STEM sandboxes: live circuit sliders, variable dials, Python code runners, and formula deconstructions.",
+    output: "Adjustable voltage dials, animated electrons, and real-time computation."
+  },
+  {
+    step: "5. Question",
+    title: "Checkpoint Understanding Checks",
+    badge: "Active Recall",
+    icon: "quiz",
+    color: "#0284c7",
+    description: "Tests student intuition right after explaining a concept before advancing, ensuring solid comprehension before compounding complexity.",
+    output: "Concept-grounded diagnostic questions and numerical problem scenarios."
+  },
+  {
+    step: "6. Evaluate",
+    title: "Root-Cause Misconception Diagnostics",
+    badge: "AI Diagnostic",
+    icon: "psychology_alt",
+    color: "#d97706",
+    description: "When an answer is incorrect, the AI analyzes the chosen option to detect whether the error was an arithmetic slip or a deep conceptual flaw.",
+    output: "Precise diagnostic assessment isolating the exact broken assumption."
+  },
+  {
+    step: "7. Adapt",
+    title: "Physical Metaphors & Remediation Drills",
+    badge: "Intuitive Recovery",
+    icon: "swap_calls",
+    color: "#dc2626",
+    description: "Branches into intuitive physical analogies (such as water-pipe valve constriction for electrical resistance) to rebuild intuition from first principles.",
+    output: "Interactive recovery demonstration and follow-up verification quiz."
+  },
+  {
+    step: "8. Continue",
+    title: "Adaptive Learning Path Mastery",
+    badge: "Certified Progress",
+    icon: "verified",
+    color: "#059669",
+    description: "Computes mastery score percentage, records verified strengths in local storage, and dynamically updates the student's adaptive learning roadmap.",
+    output: "Calculated mastery percentage, updated milestone path, and printable certificate."
+  }
+];
+
+const LANGUAGE_SAMPLES: Record<string, { label: string; flag: string; sample: string; phonetic: string }> = {
+  English: {
+    label: "English",
+    flag: "🇺🇸",
+    sample: "Ohm's law states that current is directly proportional to voltage and inversely proportional to resistance: I = V / R.",
+    phonetic: "Clear academic English with natural educator cadence."
+  },
+  Hinglish: {
+    label: "Hinglish",
+    flag: "🇮🇳",
+    sample: "Agar aap resistance badhaoge, toh current kam ho jayega! Think of it jaise pipe ka valve tight kar diya ho.",
+    phonetic: "Intuitive blend of Hindi & English popular among STEM students."
+  },
+  Hindi: {
+    label: "हिन्दी (Hindi)",
+    flag: "🇮🇳",
+    sample: "ओम का नियम बताता है कि विभवांतर (V) बढ़ाने पर विद्युत धारा (I) बढ़ती है, जबकि प्रतिरोध (R) धारा के प्रवाह का विरोध करता है।",
+    phonetic: "Pure academic Hindi with precise scientific terminology."
+  },
+  Spanish: {
+    label: "Español",
+    flag: "🇪🇸",
+    sample: "La ley de Ohm establece que la corriente es directamente proporcional al voltaje e inversamente proporcional a la resistencia.",
+    phonetic: "Natural Spanish with localized engineering terminology."
+  },
+  French: {
+    label: "Français",
+    flag: "🇫🇷",
+    sample: "La loi d'Ohm stipule que l'intensité du courant traversant un conducteur est proportionnelle à la tension à ses bornes.",
+    phonetic: "Refined French pedagogical syntax."
+  },
+  German: {
+    label: "Deutsch",
+    flag: "🇩🇪",
+    sample: "Das Ohmsche Gesetz besagt, dass die Stromstärke direkt proportional zur Spannung und umgekehrt proportional zum Widerstand ist.",
+    phonetic: "Structured German technical instruction."
+  },
+  Japanese: {
+    label: "日本語 (Japanese)",
+    flag: "🇯🇵",
+    sample: "オームの法則によれば、電流は電圧に比例し、抵抗に反比例します。電圧が高ければ電子の流れは強くなります。",
+    phonetic: "Polite Socratic Japanese explanation."
+  },
+  Mandarin: {
+    label: "中文 (Mandarin)",
+    flag: "🇨🇳",
+    sample: "欧姆定律表明，导体中的电流与导体两端的电压成正比，与导体的电阻成反比，即 I = V / R。",
+    phonetic: "Precise standard Mandarin scientific instruction."
+  }
+};
+
 export const HomeScreen: React.FC<HomeScreenProps> = ({ 
   onNavigate,
   userName,
@@ -149,6 +275,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
   const [demoVoltage, setDemoVoltage] = useState<number>(12);
   const [demoResistance, setDemoResistance] = useState<number>(4);
+  const [activeLoopStep, setActiveLoopStep] = useState<number>(0);
+  const [activeLangPreview, setActiveLangPreview] = useState<string>('Hinglish');
 
   const demoCurrent = (demoVoltage / demoResistance).toFixed(2);
 
@@ -635,8 +763,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
             {/* Engine Pillar 4 */}
             <div className="bg-white p-6 rounded-2xl shadow-xs border border-[#c7c4d7]/60 flex flex-col h-full hover:-translate-y-1 transition-transform duration-300">
-              <div className="w-12 h-12 rounded-xl bg-[#d97706]/15 flex items-center justify-center text-[#d97706] mb-4">
-                <span id="pillar-remediation-icon" className="material-symbols-outlined text-[26px]">troubleshoot</span>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100/80 border border-amber-200/60 flex items-center justify-center text-[#d97706] mb-4 shadow-2xs">
+                <span id="pillar-remediation-icon" className="material-symbols-outlined text-[26px] select-none">psychology_alt</span>
               </div>
               <h3 className="text-base font-bold text-[#131b2e] mb-2">Adaptive Remediation</h3>
               <p className="text-xs text-[#464554] leading-relaxed flex-grow">
@@ -787,6 +915,312 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
               </div>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* 7B. Deep Socratic Pedagogical Loop Explorer */}
+      <section className="py-12 md:py-16 px-6 md:px-12 bg-white border-t border-[#c7c4d7]/50">
+        <div className="max-w-[1280px] mx-auto">
+          <div className="text-center mb-10">
+            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#e2e7ff] text-[#4648d4] inline-block mb-3">
+              First-Principles Methodology
+            </span>
+            <h2 className="text-2xl md:text-3xl font-bold text-[#131b2e] mb-2">
+              The 8-Stage Autonomous Teaching Loop
+            </h2>
+            <p className="text-sm text-[#464554] max-w-2xl mx-auto">
+              How Nova simulates the cognitive feedback loop of an elite private tutor from initial document intake to permanent mastery.
+            </p>
+          </div>
+
+          {/* Interactive Stage Selector Bar */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-4 mb-8 no-scrollbar">
+            {PEDAGOGICAL_STEPS.map((item, idx) => {
+              const isActive = activeLoopStep === idx;
+              return (
+                <button
+                  key={idx}
+                  id={`pedagogy-step-${idx}`}
+                  type="button"
+                  onClick={() => setActiveLoopStep(idx)}
+                  className={`px-4 py-2.5 rounded-xl font-bold text-xs whitespace-nowrap transition-all flex items-center gap-2 cursor-pointer border ${
+                    isActive
+                      ? 'bg-[#4648d4] text-white border-[#4648d4] shadow-sm scale-[1.02]'
+                      : 'bg-[#faf8ff] text-[#464554] border-[#c7c4d7]/60 hover:bg-[#f2f3ff]'
+                  }`}
+                >
+                  <span className="material-symbols-outlined text-[16px]">{item.icon}</span>
+                  <span>{item.step}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Stage Detail Showcase */}
+          {(() => {
+            const current = PEDAGOGICAL_STEPS[activeLoopStep];
+            return (
+              <div className="bg-[#faf8ff] border border-[#c7c4d7]/70 rounded-2xl p-6 md:p-8 shadow-xs">
+                <div className="flex flex-col lg:flex-row gap-8 items-start justify-between">
+                  <div className="space-y-4 max-w-xl">
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-sm"
+                        style={{ backgroundColor: current.color }}
+                      >
+                        <span className="material-symbols-outlined text-[26px]">{current.icon}</span>
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#4648d4]">
+                          {current.badge}
+                        </span>
+                        <h3 className="text-xl font-bold text-[#131b2e]">
+                          {current.title}
+                        </h3>
+                      </div>
+                    </div>
+
+                    <p className="text-sm text-[#464554] leading-relaxed">
+                      {current.description}
+                    </p>
+
+                    <div className="p-4 rounded-xl bg-white border border-[#c7c4d7]/60 text-xs space-y-1">
+                      <div className="font-bold text-[#131b2e] flex items-center gap-1.5 text-[11px] text-[#4648d4]">
+                        <span className="material-symbols-outlined text-[16px]">output</span>
+                        Deterministic Output & State Transformation:
+                      </div>
+                      <p className="text-[#464554] leading-normal">{current.output}</p>
+                    </div>
+
+                    <div className="flex items-center gap-3 pt-2">
+                      <button
+                        type="button"
+                        id="pedagogy-try-btn"
+                        onClick={() => onNavigate('personalize')}
+                        className="px-5 py-2.5 rounded-xl bg-[#4648d4] hover:bg-[#3537b8] text-white font-bold text-xs shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <span>Experience This Stage</span>
+                        <span className="material-symbols-outlined text-[16px]">arrow_forward</span>
+                      </button>
+                      <button
+                        type="button"
+                        id="pedagogy-next-step-btn"
+                        onClick={() => setActiveLoopStep((activeLoopStep + 1) % PEDAGOGICAL_STEPS.length)}
+                        className="px-4 py-2.5 rounded-xl bg-white border border-[#c7c4d7]/70 text-[#131b2e] hover:bg-[#f2f3ff] font-semibold text-xs transition-colors cursor-pointer"
+                      >
+                        Next: {PEDAGOGICAL_STEPS[(activeLoopStep + 1) % PEDAGOGICAL_STEPS.length].step}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Stage Visual Simulation Frame */}
+                  <div className="w-full lg:w-[460px] bg-white rounded-xl border border-[#c7c4d7]/70 p-5 shadow-xs flex flex-col justify-between space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-[#c7c4d7]/40">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-xs font-bold text-[#131b2e]">Nova Cognitive Pipeline</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-[#4648d4] bg-[#e2e7ff] px-2 py-0.5 rounded-md font-semibold">
+                        Stage {activeLoopStep + 1} of 8
+                      </span>
+                    </div>
+
+                    <div className="space-y-3 font-mono text-xs">
+                      <div className="p-2.5 rounded-lg bg-[#f2f3ff] text-[#131b2e] border border-[#c7c4d7]/40">
+                        <span className="text-[#4648d4] font-bold">&gt; Active Goal: </span>
+                        <span>{current.step.split('. ')[1]} verification</span>
+                      </div>
+                      <div className="p-2.5 rounded-lg bg-[#faf8ff] text-[#464554] border border-[#c7c4d7]/40">
+                        <span className="text-emerald-600 font-bold">&gt; Status: </span>
+                        <span>Synchronized with client pedagogical engine</span>
+                      </div>
+                      <div className="p-2.5 rounded-lg bg-[#faf8ff] text-[#464554] border border-[#c7c4d7]/40">
+                        <span className="text-amber-600 font-bold">&gt; Diagnostic: </span>
+                        <span>Continuous misconception telemetry active</span>
+                      </div>
+                    </div>
+
+                    <div className="pt-2 flex items-center justify-between text-[11px] text-[#464554]">
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px] text-[#10b981]">lock</span>
+                        Zero Cloud Database Required
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="material-symbols-outlined text-[14px] text-[#4648d4]">speed</span>
+                        Instant Feedback Loop
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      </section>
+
+      {/* 7C. Multi-Format Ingestion & Document Intelligence */}
+      <section className="py-12 md:py-16 px-6 md:px-12 bg-[#faf8ff] border-t border-[#c7c4d7]/50">
+        <div className="max-w-[1280px] mx-auto">
+          <div className="text-center mb-10">
+            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#e2e7ff] text-[#4648d4] inline-block mb-3">
+              Universal Document Intake
+            </span>
+            <h2 className="text-2xl md:text-3xl font-bold text-[#131b2e] mb-2">
+              Transform Any Course Material Into Interactive Lessons
+            </h2>
+            <p className="text-sm text-[#464554] max-w-2xl mx-auto">
+              Upload existing classroom files or textbooks. TeachAI’s dual client-server parser cleanses raw bytes and builds an accurate, safe curriculum in seconds.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white p-5 rounded-2xl border border-[#c7c4d7]/60 shadow-xs flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-red-50 text-red-600 flex items-center justify-center font-bold text-xs border border-red-200">
+                  <span className="material-symbols-outlined text-[22px]">picture_as_pdf</span>
+                </div>
+                <h3 className="font-bold text-sm text-[#131b2e]">PDF Textbooks & Papers</h3>
+                <p className="text-xs text-[#464554] leading-relaxed">
+                  Extracts uncompressed and Flate-decoded streams while filtering out binary markers, tables of contents, and index noise.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-[#c7c4d7]/40 text-[11px] font-semibold text-red-600 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                Full Chapter Sanitization
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-[#c7c4d7]/60 shadow-xs flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs border border-blue-200">
+                  <span className="material-symbols-outlined text-[22px]">description</span>
+                </div>
+                <h3 className="font-bold text-sm text-[#131b2e]">Word & Class Notes (.docx)</h3>
+                <p className="text-xs text-[#464554] leading-relaxed">
+                  Reads assignment prompts, teacher rubrics, and bulleted study guides, structuring them into sequential micro-learning steps.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-[#c7c4d7]/40 text-[11px] font-semibold text-blue-600 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                Syllabus Outline Parsing
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-[#c7c4d7]/60 shadow-xs flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold text-xs border border-amber-200">
+                  <span className="material-symbols-outlined text-[22px]">slideshow</span>
+                </div>
+                <h3 className="font-bold text-sm text-[#131b2e]">Lecture Slide Decks (.pptx)</h3>
+                <p className="text-xs text-[#464554] leading-relaxed">
+                  Converts fragmented presentation bullet points into fully coherent conceptual explanations with Socratic question pauses.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-[#c7c4d7]/40 text-[11px] font-semibold text-amber-600 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                Slide Concept Expansion
+              </div>
+            </div>
+
+            <div className="bg-white p-5 rounded-2xl border border-[#c7c4d7]/60 shadow-xs flex flex-col justify-between">
+              <div className="space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold text-xs border border-emerald-200">
+                  <span className="material-symbols-outlined text-[22px]">edit_note</span>
+                </div>
+                <h3 className="font-bold text-sm text-[#131b2e]">Custom Prompts & Topics</h3>
+                <p className="text-xs text-[#464554] leading-relaxed">
+                  No files handy? Just type "Quantum Entanglement" or "Dynamic Programming" to synthesize an exhaustive curriculum on demand.
+                </p>
+              </div>
+              <div className="mt-4 pt-3 border-t border-[#c7c4d7]/40 text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
+                <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                Instant Zero-Doc Mode
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 7D. Multilingual Socratic Classroom Showcase */}
+      <section className="py-12 md:py-16 px-6 md:px-12 bg-white border-t border-[#c7c4d7]/50">
+        <div className="max-w-[1280px] mx-auto">
+          <div className="text-center mb-10">
+            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-[#e2e7ff] text-[#4648d4] inline-block mb-3">
+              12 Global Languages
+            </span>
+            <h2 className="text-2xl md:text-3xl font-bold text-[#131b2e] mb-2">
+              Learn in Your Native Tongue & Natural Dialect
+            </h2>
+            <p className="text-sm text-[#464554] max-w-2xl mx-auto">
+              Science and mathematics are universal. Nova switches seamlessly between languages, preserving rigorous technical accuracy while using familiar everyday idioms.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-2 mb-8">
+            {Object.keys(LANGUAGE_SAMPLES).map((langKey) => {
+              const lang = LANGUAGE_SAMPLES[langKey];
+              const isSelected = activeLangPreview === langKey;
+              return (
+                <button
+                  key={langKey}
+                  id={`lang-preview-btn-${langKey}`}
+                  type="button"
+                  onClick={() => setActiveLangPreview(langKey)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                    isSelected
+                      ? 'bg-[#4648d4] text-white border-[#4648d4] shadow-xs scale-[1.02]'
+                      : 'bg-[#faf8ff] text-[#464554] border-[#c7c4d7]/60 hover:bg-[#f2f3ff]'
+                  }`}
+                >
+                  <span>{lang.flag}</span>
+                  <span>{lang.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Active Language Preview Dialogue Box */}
+          {(() => {
+            const currentLang = LANGUAGE_SAMPLES[activeLangPreview] || LANGUAGE_SAMPLES.English;
+            return (
+              <div className="max-w-3xl mx-auto bg-[#faf8ff] border border-[#c7c4d7]/70 rounded-2xl p-6 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-[#c7c4d7]/40">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#4648d4] text-white flex items-center justify-center font-bold text-sm">
+                      <span className="material-symbols-outlined text-[20px]">smart_toy</span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-[#131b2e]">Teacher Nova in {currentLang.label}</p>
+                      <p className="text-[10px] text-[#4648d4] font-medium">{currentLang.phonetic}</p>
+                    </div>
+                  </div>
+                  <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[12px]">record_voice_over</span>
+                    Speech Output Ready
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-white border border-[#c7c4d7]/50 text-sm text-[#131b2e] leading-relaxed italic">
+                  "{currentLang.sample}"
+                </div>
+
+                <div className="flex items-center justify-between text-xs text-[#464554] pt-1">
+                  <span className="flex items-center gap-1 text-[11px]">
+                    <span className="material-symbols-outlined text-[14px] text-[#4648d4]">translate</span>
+                    Zero robotic translation artifacts
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onNavigate('personalize')}
+                    className="text-xs font-bold text-[#4648d4] hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    Set {currentLang.label} as default
+                    <span className="material-symbols-outlined text-[14px]">arrow_forward</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </section>
 

@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { ASSETS } from '../data/mockData';
 import { buildDynamicLessonPlan } from '../utils/lessonGenerator';
 import { addActivityEvent } from '../utils/historyStorage';
+import { safeSummaryText, cleanTextContent } from '../utils/textSanitizer';
 
 interface PlanningScreenProps {
   onNavigate: (screen: ScreenType) => void;
@@ -300,14 +301,14 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1 mb-1">
                         <h3 className={`text-xs sm:text-sm font-bold truncate ${isSelected ? 'text-[#4648d4]' : 'text-[#131b2e]'}`}>
-                          {sec.title}
+                          {cleanTextContent(sec.title)}
                         </h3>
                         <span className="text-[11px] font-semibold text-[#464554] shrink-0 bg-[#faf8ff] px-2 py-0.5 rounded border border-[#c7c4d7]/40">
                           {sec.duration}
                         </span>
                       </div>
                       <p className="text-xs text-[#464554] line-clamp-2 leading-relaxed">
-                        {sec.summary}
+                        {safeSummaryText(sec.summary, sec.keyConcept, plan.topic)}
                       </p>
                     </div>
                   </div>
@@ -412,10 +413,14 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
               })()}
 
               <h3 className="text-lg font-bold text-[#131b2e] mb-2">
-                {plan.sections[activeSection]?.title}
+                {cleanTextContent(plan.sections[activeSection]?.title || '')}
               </h3>
               <p className="text-xs sm:text-sm text-[#464554] leading-relaxed mb-4">
-                {plan.sections[activeSection]?.summary}
+                {safeSummaryText(
+                  plan.sections[activeSection]?.summary,
+                  plan.sections[activeSection]?.keyConcept,
+                  plan.topic
+                )}
               </p>
 
               {/* Key Concept Box */}
@@ -425,7 +430,7 @@ export const PlanningScreen: React.FC<PlanningScreenProps> = ({
                   Target Concept
                 </div>
                 <p className="text-xs text-[#0369a1] font-medium">
-                  {plan.sections[activeSection]?.keyConcept}
+                  {cleanTextContent(plan.sections[activeSection]?.keyConcept || '')}
                 </p>
               </div>
 

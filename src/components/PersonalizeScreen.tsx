@@ -2,23 +2,29 @@ import React, { useState, useRef, useEffect } from 'react';
 import { LessonPlan, PersonalizeFormState, ScreenType } from '../types';
 import { extractClientDocumentInsights } from '../utils/lessonGenerator';
 import { addActivityEvent } from '../utils/historyStorage';
+import {
+  isBinaryOrCorruptedText,
+  cleanTextContent,
+  safeSummaryText,
+  synthesizeSubjectCurriculum,
+} from '../utils/textSanitizer';
 
 interface PersonalizeScreenProps {
   onNavigate: (screen: ScreenType) => void;
   onSetFormState?: (form: PersonalizeFormState, plan?: LessonPlan) => void;
 }
 
-// Client-side lightweight PDF text stream extractor
+// Client-side robust PDF text extractor with Flate decompression and binary safety
 async function extractTextFromPDFFile(file: File): Promise<string> {
   try {
     const arrayBuffer = await file.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
-    const decoder = new TextDecoder('utf-8');
+    const decoder = new TextDecoder('utf-8', { fatal: false });
     const raw = decoder.decode(bytes);
 
     const textChunks: string[] = [];
 
-    // Match Tj operator: (string) Tj
+    // 1. Check for uncompressed PDF text operators: (text) Tj
     const tjRegex = /\(([^)]+)\)\s*(?:Tj|'|")/g;
     let match: RegExpExecArray | null;
     while ((match = tjRegex.exec(raw)) !== null) {
@@ -27,7 +33,7 @@ async function extractTextFromPDFFile(file: File): Promise<string> {
       }
     }
 
-    // Match TJ operator: [ (str) 12 (str2) ] TJ
+    // 2. Check for TJ array operator: [ (str) 12 (str2) ] TJ
     const tjArrayRegex = /\[([^\]]+)\]\s*TJ/g;
     while ((match = tjArrayRegex.exec(raw)) !== null) {
       const inner = match[1];
@@ -38,24 +44,91 @@ async function extractTextFromPDFFile(file: File): Promise<string> {
       }
     }
 
+    // 3. If standard uncompressed operators yielded too little, attempt native Flate stream decompression
+    if (textChunks.length < 5 && typeof DecompressionStream !== 'undefined') {
+      try {
+        const streamWord = new TextEncoder().encode('stream');
+        const endStreamWord = new TextEncoder().encode('endstream');
+
+        // Locate stream blocks in binary buffer
+        for (let i = 0; i < bytes.length - 20; i++) {
+          // Match 'stream\r\n' or 'stream\n'
+          if (
+            bytes[i] === 115 && // 's'
+            bytes[i + 1] === 116 && // 't'
+            bytes[i + 2] === 114 && // 'r'
+            bytes[i + 3] === 101 && // 'e'
+            bytes[i + 4] === 97 && // 'a'
+            bytes[i + 5] === 109 // 'm'
+          ) {
+            let streamStart = i + 6;
+            if (bytes[streamStart] === 13) streamStart++; // skip \r
+            if (bytes[streamStart] === 10) streamStart++; // skip \n
+
+            // Find endstream
+            let streamEnd = -1;
+            for (let j = streamStart; j < Math.min(bytes.length - 8, streamStart + 500000); j++) {
+              if (
+                bytes[j] === 101 && // 'e'
+                bytes[j + 1] === 110 && // 'n'
+                bytes[j + 2] === 100 && // 'd'
+                bytes[j + 3] === 115 && // 's'
+                bytes[j + 4] === 116 && // 't'
+                bytes[j + 5] === 114 && // 'r'
+                bytes[j + 6] === 101 && // 'e'
+                bytes[j + 7] === 97 && // 'a'
+                bytes[j + 8] === 109 // 'm'
+              ) {
+                streamEnd = j;
+                break;
+              }
+            }
+
+            if (streamEnd > streamStart + 2) {
+              const streamData = bytes.slice(streamStart, streamEnd);
+              // Check if zlib header (0x78)
+              if (streamData[0] === 0x78) {
+                try {
+                  const ds = new DecompressionStream('deflate');
+                  const writer = ds.writable.getWriter();
+                  writer.write(streamData);
+                  writer.close();
+                  const decompressedText = await new Response(ds.readable).text();
+                  if (decompressedText && decompressedText.length > 20) {
+                    // Extract text from decompressed PDF stream
+                    let dMatch: RegExpExecArray | null;
+                    const dRegex = /\(([^)]+)\)\s*(?:Tj|'|")/g;
+                    while ((dMatch = dRegex.exec(decompressedText)) !== null) {
+                      if (dMatch[1] && dMatch[1].length > 1) {
+                        textChunks.push(dMatch[1]);
+                      }
+                    }
+                  }
+                } catch {
+                  // Silently ignore stream that could not be decompressed
+                }
+              }
+            }
+          }
+          if (textChunks.length > 100) break;
+        }
+      } catch {
+        // Stream decompression failed gracefully
+      }
+    }
+
     let extracted = textChunks
       .map((s) => s.replace(/\\([()\\])/g, '$1'))
       .filter((s) => s.trim().length > 1 && !/^[\x00-\x1F\x7F]+$/.test(s))
       .join(' ')
       .trim();
 
-    // Fallback: extract continuous ASCII blocks
-    if (!extracted || extracted.length < 50) {
-      const asciiMatches = raw.match(/[A-Za-z0-9 ,.\-:;!?'"()\/\n]{6,}/g);
-      if (asciiMatches) {
-        const filtered = asciiMatches.filter((s) =>
-          !/^\s*(obj|endobj|stream|endstream|xref|trailer|startxref|Length|Filter|FlateDecode|Font|Type|Subtype)/i.test(s.trim())
-        );
-        extracted = filtered.slice(0, 150).join(' ');
-      }
+    // Verify whether the extracted text is human readable and clean
+    if (!extracted || extracted.length < 50 || isBinaryOrCorruptedText(extracted)) {
+      return '';
     }
 
-    return extracted.trim();
+    return cleanTextContent(extracted);
   } catch (err) {
     console.warn('PDF stream extraction fallback:', err);
     return '';
@@ -151,33 +224,43 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
       }
     }
 
-    const finalContent = extracted && extracted.trim().length > 25
-      ? extracted.trim()
-      : `Comprehensive study notes and curriculum extracted from ${file.name}. Explores core definitions, theoretical foundations, key mechanisms, and analytical problem scenarios for ${cleanFileName}.`;
-
-    // Analyze document profile from backend or client
+    // Check if the extracted text is clean and legible; if binary, corrupted, or too short, synthesize rich domain curriculum
+    let finalContent = cleanTextContent(extracted);
     let resolvedTopic = cleanFileName;
     let resolvedConcepts: string[] = [];
     let resolvedSubject = 'Academic & STEM';
 
-    try {
-      const profRes = await fetch('/api/document/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileName: file.name, text: finalContent.slice(0, 4000) }),
-      });
-      if (profRes.ok) {
-        const profData = await profRes.json();
-        if (profData.profile) {
-          resolvedTopic = profData.profile.primaryTopic || profData.profile.title || cleanFileName;
-          resolvedConcepts = profData.profile.keyConcepts || [];
-          resolvedSubject = profData.profile.subjects?.[0] || 'Academic Subject';
+    if (!finalContent || finalContent.trim().length < 35 || isBinaryOrCorruptedText(finalContent)) {
+      const synth = synthesizeSubjectCurriculum(cleanFileName);
+      finalContent = synth.content;
+      resolvedTopic = synth.topic;
+      resolvedConcepts = synth.keyConcepts;
+      resolvedSubject = synth.subject;
+    } else {
+      // Analyze document profile from backend or client
+      try {
+        const profRes = await fetch('/api/document/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            documentText: finalContent.slice(0, 4000),
+            text: finalContent.slice(0, 4000),
+          }),
+        });
+        if (profRes.ok) {
+          const profData = await profRes.json();
+          if (profData.profile) {
+            resolvedTopic = profData.profile.primaryTopic || profData.profile.title || cleanFileName;
+            resolvedConcepts = (profData.profile.keyConcepts || []).filter((c: string) => !isBinaryOrCorruptedText(c));
+            resolvedSubject = profData.profile.subjects?.[0] || 'Academic Subject';
+          }
         }
+      } catch {
+        const insights = extractClientDocumentInsights(finalContent, cleanFileName);
+        resolvedTopic = insights.topic;
+        resolvedConcepts = insights.concepts;
       }
-    } catch {
-      const insights = extractClientDocumentInsights(finalContent, cleanFileName);
-      resolvedTopic = insights.topic;
-      resolvedConcepts = insights.concepts;
     }
 
     if (!resolvedConcepts || resolvedConcepts.length === 0) {
@@ -251,8 +334,16 @@ export const PersonalizeScreen: React.FC<PersonalizeScreenProps> = ({ onNavigate
         }),
       });
       const data = await res.json();
+      let validatedPlan = data.lessonPlan;
+      if (validatedPlan && validatedPlan.sections) {
+        validatedPlan.sections = validatedPlan.sections.map((s: any) => ({
+          ...s,
+          title: cleanTextContent(s.title),
+          summary: safeSummaryText(s.summary, s.keyConcept, finalForm.topicText),
+        }));
+      }
       if (onSetFormState) {
-        onSetFormState(finalForm, data.lessonPlan);
+        onSetFormState(finalForm, validatedPlan);
       }
     } catch (e) {
       console.warn('Fallback plan creation:', e);
