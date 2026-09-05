@@ -2,7 +2,6 @@
 
 <div align="center">
 
-[![Hackathon](https://img.shields.io/badge/Hackathon-AI%20Innovation%202026-4F46E5?style=for-the-badge&logo=google)](https://github.com/bikram73/Teach_AI)
 [![Model](https://img.shields.io/badge/Model-Gemini%203.7%20Flash-0891B2?style=for-the-badge&logo=googlegemini)](https://ai.google.dev)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2018%20%2B%20TypeScript%20%2B%20Tailwind-10B981?style=for-the-badge&logo=react)](https://react.dev)
 [![Backend](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-F97316?style=for-the-badge&logo=nodedotjs)](https://nodejs.org)
@@ -38,7 +37,7 @@
 | <div align="center">**Understand how misconception detection and adaptive remediation work.** 👉</div> | <div align="center"><a href="#misconceptions"><img src="https://img.shields.io/badge/💡%20Adaptive%20Remediation-D97706?style=for-the-badge" /></a></div> |
 | <div align="center">**Understand how assessment scores are calculated and interpreted.** 👉</div> | <div align="center"><a href="#scoring"><img src="https://img.shields.io/badge/📊%20Assessment%20Scoring-2563EB?style=for-the-badge" /></a></div> |
 | <div align="center">**View session-based learning memory architecture.** 👉</div> | <div align="center"><a href="#session-memory"><img src="https://img.shields.io/badge/🧠%20Session%20Memory-0D9488?style=for-the-badge" /></a></div> |
-| <div align="center">**View hackathon challenge requirement mapping.** 👉</div> | <div align="center"><a href="#challenge-mapping"><img src="https://img.shields.io/badge/📄%20Challenge%20Mapping-059669?style=for-the-badge" /></a></div> |
+| <div align="center">**View core system requirements and implementation matrix.** 👉</div> | <div align="center"><a href="#requirements-matrix"><img src="https://img.shields.io/badge/📄%20Capabilities%20Matrix-059669?style=for-the-badge" /></a></div> |
 | <div align="center">**View the available REST API endpoints and request/response examples.** 👉</div> | <div align="center"><a href="#api"><img src="https://img.shields.io/badge/🌐%20API%20Documentation-0EA5E9?style=for-the-badge" /></a></div> |
 | <div align="center">**Explore the system architecture and technical design document.** 👉</div> | <div align="center"><a href="./ARCHITECTURE.md"><img src="https://img.shields.io/badge/🏗️%20Architecture%20Document-DC2626?style=for-the-badge" /></a></div> |
 | <div align="center">**Review technical specifications, validation strategy, and AI metrics.** 👉</div> | <div align="center"><a href="./TECHNICAL_REPORT.md"><img src="https://img.shields.io/badge/📊%20Technical%20Report-2563EB?style=for-the-badge" /></a></div> |
@@ -196,7 +195,7 @@ If both Gemini and OpenRouter are unavailable or unconfigured, requests instantl
 <a name="ai-fallback"></a>
 ## ⚡ Resilient Multi-Provider AI Fallback Pipeline
 
-To ensure absolute **zero downtime** and uninterrupted classroom sessions during hackathon evaluations, TeachAI implements an enterprise-grade multi-tier fallback architecture:
+To ensure absolute **zero downtime** and uninterrupted classroom sessions across varying network conditions and provider rate limits, TeachAI implements an enterprise-grade multi-tier fallback architecture:
 
 ```
                           ┌───────────────────────────┐
@@ -518,10 +517,10 @@ TeachAI operates under a privacy-first, zero-database architecture. Learner stat
 
 ---
 
-<a name="challenge-mapping"></a>
-## 📄 Hackathon Challenge Requirement Mapping
+<a name="requirements-matrix"></a>
+## 📄 System Requirements & Capability Implementation Matrix
 
-| Hackathon Requirement | TeachAI Implementation | Verification Component |
+| System Capability & Requirement | TeachAI Implementation | Verification Component |
 |:---|:---|:---|
 | **Zero Downtime AI Resilience** | Multi-tier cascade: Gemini ➔ OpenRouter ➔ Groq ➔ Offline Heuristics | `server.ts`, `/api/ai/status` |
 | **Persistent Student Identity** | First-session modal onboarding with Dual-Storage (localStorage + 365d cookie) | `UserNameModal.tsx`, `userStorage.ts` |
@@ -811,5 +810,5 @@ Distributed under the **MIT License**. See [`LICENSE`](./LICENSE) for full detai
 
 <div align="center">
 <br />
-Developed for the <b>AI Innovation Hackathon 2026</b>
+TeachAI — Next-Generation Human-Like AI Teacher Platform
 </div>
