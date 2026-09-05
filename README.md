@@ -43,7 +43,6 @@
 | <div align="center">**Review technical specifications, validation strategy, and AI metrics.** 👉</div> | <div align="center"><a href="./TECHNICAL_REPORT.md"><img src="https://img.shields.io/badge/📊%20Technical%20Report-2563EB?style=for-the-badge" /></a></div> |
 | <div align="center">**Review latency and performance considerations.** 👉</div> | <div align="center"><a href="#performance"><img src="https://img.shields.io/badge/⚡%20Performance-F59E0B?style=for-the-badge" /></a></div> |
 | <div align="center">**Understand current limitations and future roadmap.** 👉</div> | <div align="center"><a href="#limitations"><img src="https://img.shields.io/badge/⚠️%20Known%20Limitations-EF4444?style=for-the-badge" /></a></div> |
-| <div align="center">**View Netlify and Cloud deployment instructions.** 👉</div> | <div align="center"><a href="#deployment"><img src="https://img.shields.io/badge/☁️%20Deployment-00C7B7?style=for-the-badge" /></a></div> |
 | <div align="center">**View the project license information.** 👉</div> | <div align="center"><a href="#license"><img src="https://img.shields.io/badge/📄%20License-6B7280?style=for-the-badge" /></a></div> |
 
 </div>
