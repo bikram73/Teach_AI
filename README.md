@@ -5,7 +5,7 @@
 [![Model](https://img.shields.io/badge/Model-Gemini%203.7%20Flash-0891B2?style=for-the-badge&logo=googlegemini)](https://ai.google.dev)
 [![Frontend](https://img.shields.io/badge/Frontend-React%2018%20%2B%20TypeScript%20%2B%20Tailwind-10B981?style=for-the-badge&logo=react)](https://react.dev)
 [![Backend](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-F97316?style=for-the-badge&logo=nodedotjs)](https://nodejs.org)
-[![Deploy](https://img.shields.io/badge/Deployment-Netlify%20Functions-00C7B7?style=for-the-badge&logo=netlify)](https://www.netlify.com)
+[![Deploy](https://img.shields.io/badge/Deployment-Netlify%20Functions-00C7B7?style=for-the-badge&logo=netlify)](https://teach-ai-adaptive-teacher.netlify.app/)
 [![License](https://img.shields.io/badge/License-MIT-6B7280?style=for-the-badge)](./LICENSE)
 
 <br />
