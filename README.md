@@ -776,33 +776,6 @@ TeachAI is structured for low-latency session operations and responsive client i
 
 ---
 
-<a name="deployment"></a>
-## ☁️ Deployment Instructions
-
-### 🌐 Deploying to Netlify (Recommended)
-This repository includes pre-configured `netlify.toml` and `netlify/functions/api.ts`:
-
-1. Push your repository to GitHub: `https://github.com/bikram73/Teach_AI`.
-2. In the [Netlify Dashboard](https://app.netlify.com), select **Add new site** $\to$ **Import an existing project**.
-3. Select your repository. Netlify auto-detects build configuration from `netlify.toml`:
-   - **Build command**: `npm run build`
-   - **Publish directory**: `dist`
-   - **Functions directory**: `netlify/functions`
-4. Under **Site Configuration** $\to$ **Environment Variables**, add:
-   - `GEMINI_API_KEY`: *(Your Google AI Studio API Key)*
-5. Click **Deploy Site**.
-
-### 🐳 Deploying via Docker / Cloud Run
-```bash
-# Build production bundle
-npm run build
-
-# Start the standalone server
-npm run start
-```
-
----
-
 <a name="license"></a>
 ## 📄 License
 
